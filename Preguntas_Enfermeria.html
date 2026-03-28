@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Preguntas de Enfermería</title>
+
+<style>
+body {
+    font-family: Lato;
+    margin: 0;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    color: white;
+    text-align: center;
+}
+
+.container {
+    max-width: 800px;
+    margin: auto;
+    padding: 20px;
+}
+
+.answer {
+    background: #1565c0;
+    padding: 10px;
+    margin: 5px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.correct { background: #2e7d32; }
+.incorrect { background: #c62828; }
+
+button, select {
+    padding: 10px;
+    margin: 5px;
+    border-radius: 8px;
+    border: none;
+}
+
+button { background: #00c853; color: white; }
+#restartBtn { background:red; }
+#homeBtn { background:#1565c0; }
+
+.quote { margin-top:20px; font-style: italic; }
+</style>
+</head>
+
+<body>
+
+<!-- PORTADA -->
+<div id="portada" class="container">
+
+<h1>Preguntas de Enfermería 🚑</h1>
+
+<p>
+Simulador de preguntas.  
+Esto es apoyo, NO reemplaza el estudio.
+</p>
+
+<div class="quote">
+“Las enfermeras tienen esa manera única e insaciable de cuidar de otros…”<br>
+— Jean Watson
+</div>
+
+<br>
+
+<select id="area">
+<option value="aps">APS</option>
+<option value="dom">Atención Domiciliaria</option>
+<option value="vac">Vacunas</option>
+<option value="far">Fármacos</option>
+</select>
+
+<select id="nivel">
+<option value="facil">Fácil</option>
+<option value="medio">Medio</option>
+<option value="dificil">Difícil</option>
+<option value="extremo">Extremo</option>
+</select>
+
+<br>
+<button onclick="startQuiz()">Comenzar</button>
+
+</div>
+<div style="margin-top:40px;">
+        <a href="https://link.mercadopago.cl/simuladorestudiantes" target="_blank" style="text-decoration:none;">
+            <button style="background: linear-gradient(135deg,#009ee3,#0077b6);">💙 Apoya con tu donación aquí💙</button>
+        </a>
+
+</div>
+
+<!-- QUIZ -->
+<div id="quiz" class="container" style="display:none;">
+
+<h3 id="timer">Tiempo: 20</h3>
+<p id="question"></p>
+<div id="answers"></div>
+
+<p id="feedback"></p>
+<p id="errors"></p>
+
+<button id="nextBtn" onclick="nextQuestion()">Siguiente</button>
+<button id="restartBtn" onclick="restartQuiz()" style="display:none;">Reiniciar</button>
+<button id="homeBtn" onclick="goHome()">Volver al inicio</button>
+
+</div>
+
+<script>
+
+let current = 0;
+let errors = 0;
+let timer;
+let timeLeft = 20;
+let quizData = [];
+
+/* 🔀 MEZCLAR */
+function shuffleArray(array){
+for(let i=array.length-1;i>0;i--){
+let j=Math.floor(Math.random()*(i+1));
+[array[i],array[j]]=[array[j],array[i]];
+}
+}
+
+/* BANCO (1 por área y nivel) */
+const banco = {
+
+aps:{
+facil:[{q:"¿Cuál es el objetivo principal de la APS en Chile?",a:["Atender urgencias complejas","Promoción, prevención y atención integral","Solo hospitalizar","Atender solo enfermedades"],correct:1},
+{q:"¿Qué establecimiento es base de la APS?",a:["Hospital","CESFAM","Clínica privada","SAPU exclusivamente"],correct:1},
+{q:"¿Qué significa GES?",a:["Garantía Estatal de Salud","Garantías Explícitas en Salud","Gestión Especial Sanitaria","Grupo de Evaluación en Salud"],correct:1},
+{q:"Caso clínico: Paciente consulta por control sano sin síntomas. ¿Tipo de atención?",a:["Morbilidad","Urgencia","Preventiva","Hospitalaria"],correct:2},
+{q:"¿Qué profesional puede liderar el control cardiovascular en APS?",a:["Solo médico","Solo enfermero","Equipo multidisciplinario","Kinesiólogo exclusivamente"],correct:2},
+{q:"¿Qué programa incluye HTA y DM2?",a:["Chile Crece","Programa cardiovascular","Salud mental","GES cáncer"],correct:1},
+{q:"¿Fármaco común para HTA en APS?",a:["Paracetamol","Losartán","Amoxicilina","Insulina"],correct:1},
+{q:"Caso clínico: Paciente con glicemia elevada en control. ¿Sospecha?",a:["HTA","Diabetes","Asma","Neumonía"],correct:1},
+{q:"¿Qué examen se usa para control glicémico crónico?",a:["Hemoglobina","HbA1c","Creatinina","PCR"],correct:1},
+{q:"¿Qué es prevención primaria?",a:["Diagnóstico precoz","Evitar aparición de enfermedad","Rehabilitación","Tratamiento"],correct:1},
+{q:"Caso clínico: Niño sano acude a control. ¿Qué programa?",a:["Cardiovascular","Infantil","GES adulto","Urgencia"],correct:1},
+{q:"¿Qué vacuna está en calendario MINSAL?",a:["COVID solo","BCG","Hepatitis C","VIH"],correct:1},
+{q:"¿Qué nivel es la APS?",a:["Terciario","Secundario","Primario","Cuaternario"],correct:2},
+{q:"Caso clínico: Paciente con fiebre y tos leve. ¿Tipo de atención?",a:["Urgencia vital","Morbilidad APS","Hospitalización","Cirugía"],correct:1},
+{q:"¿Qué es un SAPU?",a:["Centro hospitalario","Servicio de urgencia APS","Clínica privada","Centro quirúrgico"],correct:1},
+{q:"¿Qué fármaco es analgésico básico APS?",a:["Morfina","Paracetamol","Fentanilo","Ketamina"],correct:1},
+{q:"Caso clínico: Paciente con dolor leve tratado en APS. ¿Fármaco inicial?",a:["Morfina","Paracetamol","Midazolam","Adrenalina"],correct:1},
+{q:"¿Qué es derivación?",a:["Alta médica","Enviar a otro nivel","Vacunar","Educar"],correct:1},
+{q:"¿Qué programa aborda salud mental?",a:["Cardiovascular","Salud mental","Infantil","GES trauma"],correct:1},
+{q:"Caso clínico: Paciente con ánimo bajo leve. ¿Manejo inicial?",a:["Hospitalizar","Psicoeducación","Cirugía","Alta inmediata"],correct:1},
+{q:"¿Qué es EMPA?",a:["Examen preventivo adulto","Examen hospitalario","Examen quirúrgico","Examen urgente"],correct:0},
+{q:"¿Qué evalúa EMPA?",a:["Solo peso","Factores de riesgo","Solo glicemia","Solo presión"],correct:1},
+{q:"Caso clínico: Paciente 50 años sin controles. ¿Acción?",a:["Nada","EMPA","Hospitalizar","Cirugía"],correct:1},
+{q:"¿Qué es red asistencial?",a:["Solo hospitales","Conjunto de establecimientos de salud","Solo CESFAM","Solo clínicas"],correct:1},
+{q:"¿Qué es CESFAM?",a:["Hospital","Centro de salud familiar","SAPU","Clínica"],correct:1},
+{q:"Caso clínico: Paciente requiere especialista. ¿Acción?",a:["Alta","Derivar","Nada","Urgencia"],correct:1},
+{q:"¿Qué fármaco es hipoglicemiante oral?",a:["Insulina","Metformina","Adrenalina","Aspirina"],correct:1},
+{q:"Caso clínico: Paciente DM2 inicia tratamiento. ¿Fármaco inicial?",a:["Insulina siempre","Metformina","Paracetamol","Ibuprofeno"],correct:1},
+{q:"¿Qué es promoción de salud?",a:["Tratamiento","Educación y hábitos saludables","Cirugía","Urgencia"],correct:1},
+{q:"¿Qué es prevención secundaria?",a:["Evitar enfermedad","Diagnóstico precoz","Rehabilitación","Cuidados paliativos"],correct:1},
+{q:"Caso clínico: Mujer sin PAP. ¿Acción?",a:["Nada","Realizar PAP","Hospitalizar","Cirugía"],correct:1},
+{q:"¿Qué es PAP?",a:["Examen pulmonar","Papanicolaou","Presión arterial","Perfil lipídico"],correct:1},
+{q:"¿Qué GES incluye HTA?",a:["Sí","No","Solo hospital","Solo privado"],correct:0},
+{q:"Caso clínico: Paciente con HTA confirmada. ¿Cobertura?",a:["No GES","GES","Solo privado","Urgencia"],correct:1},
+{q:"¿Qué es sectorización?",a:["Dividir enfermedades","Asignar población","Separar hospitales","Nada"],correct:1},
+{q:"¿Qué profesional administra vacunas?",a:["Solo médico","Enfermero","Kinesiólogo","Nutricionista"],correct:1},
+{q:"Caso clínico: Niño sin vacunas al día. ¿Acción?",a:["Esperar","Vacunar","Derivar hospital","Nada"],correct:1},
+{q:"¿Qué fármaco es antibiótico común APS?",a:["Paracetamol","Amoxicilina","Insulina","Losartán"],correct:1},
+{q:"Caso clínico: Infección respiratoria bacteriana leve. ¿Tratamiento?",a:["Antibiótico","Insulina","Antidepresivo","Anticoagulante"],correct:0},
+{q:"¿Qué es continuidad del cuidado?",a:["Atención única","Seguimiento en el tiempo","Alta inmediata","Urgencia"],correct:1},
+{q:"¿Qué es integralidad?",a:["Solo biológico","Biopsicosocial","Solo social","Solo psicológico"],correct:1},
+{q:"Caso clínico: Paciente crónico descompensado frecuente. ¿Problema?",a:["Acceso","Falta de continuidad","Urgencia","Nada"],correct:1},
+{q:"¿Qué es intersectorialidad?",a:["Solo salud","Trabajo con otros sectores","Solo hospital","Nada"],correct:1},
+{q:"¿Qué programa aborda adulto mayor?",a:["Infantil","Adulto mayor","Urgencia","Trauma"],correct:1},
+{q:"Caso clínico: Adulto mayor dependiente. ¿Evaluación?",a:["Glasgow","Barthel","APGAR RN","Framingham"],correct:1},
+{q:"¿Qué mide Barthel?",a:["Dolor","Dependencia funcional","Glucosa","Presión"],correct:1},
+{q:"¿Qué es resolutividad?",a:["Derivar todo","Capacidad de resolver en APS","Hospitalizar","Nada"],correct:1},
+{q:"Caso clínico: Paciente resuelto en CESFAM sin derivación. ¿Concepto?",a:["Ineficiencia","Resolutividad","Urgencia","GES"],correct:1},
+{q:"¿Qué fármaco es AINE?",a:["Paracetamol","Ibuprofeno","Insulina","Amoxicilina"],correct:1},
+{q:"Caso clínico: Dolor inflamatorio leve. ¿Tratamiento?",a:["Ibuprofeno","Insulina","Adrenalina","Morfina"],correct:0}],
+medio:[{q:"Usuario con PA 150/95 mmHg en 2 controles distintos en APS corresponde a:",a:["HTA etapa 1","HTA etapa 2","Prehipertensión","Crisis hipertensiva"],correct:1},
+{q:"¿Cuál es criterio de derivación inmediata en sospecha de ACV en APS?",a:["Cefalea leve","Disartria súbita","Dolor lumbar","Tos seca"],correct:1},
+{q:"El EMPA está dirigido principalmente a población:",a:["0–9 años","10–19 años","20–64 años","65 y más"],correct:2},
+{q:"Instrumento usado para evaluar riesgo cardiovascular en APS:",a:["Barthel","Framingham","Apgar","Yesavage"],correct:1},
+{q:"Fármaco inicial habitual en DM2 en APS:",a:["Insulina regular","Metformina","Losartán","Atorvastatina"],correct:1},
+{q:"GES garantiza acceso en un plazo máximo definido para:",a:["Consulta privada","Prestaciones priorizadas","Todas las patologías","Solo urgencias"],correct:1},
+{q:"Prestación incluida en control cardiovascular APS:",a:["Cirugía cardíaca","ECG basal","Angioplastía","Holter domiciliario obligatorio"],correct:1},
+{q:"Programa que controla crecimiento infantil:",a:["Chile Crece Contigo","GES adulto","PRAPS respiratorio","Más Adultos Mayores"],correct:0},
+{q:"Signo de alarma IRA baja infantil:",a:["Rinorrea leve","Aleteo nasal","Estornudos","Ojos llorosos"],correct:1},
+{q:"Indicador PRAPS mide principalmente:",a:["Producción hospitalaria","Metas sanitarias APS","Cirugías mayores","Consultas privadas"],correct:1},
+{q:"Usuario con glicemia 250 mg/dl sintomático requiere:",a:["Alta inmediata","Educación alimentaria exclusiva","Evaluación médica prioritaria","Solo control anual"],correct:2},
+{q:"Vacuna incluida en PNI infantil:",a:["Hepatitis B","Influenza estacional solo adulto","COVID exclusiva hospitalaria","Varicela solo privado"],correct:0},
+{q:"Control prenatal inicia idealmente antes de:",a:["20 semanas","14 semanas","10 semanas","30 semanas"],correct:1},
+{q:"Error frecuente en toma de PA:",a:["Paciente sentado","Brazalete adecuado","Paciente conversando","Reposo previo"],correct:2},
+{q:"CESFAM pertenece al nivel:",a:["Primario","Secundario","Terciario","Cuaternario"],correct:0},
+{q:"Función principal SOME:",a:["Vacunar","Agendar horas","Diagnosticar","Prescribir"],correct:1},
+{q:"Telesalud APS permite:",a:["Reemplazar hospital","Seguimiento remoto","Suspender controles","Eliminar derivaciones"],correct:1},
+{q:"Signo de alarma ERA adulto:",a:["Tos leve","Disnea progresiva","Rinorrea","Estornudos"],correct:1},
+{q:"Yesavage evalúa:",a:["Nutrición","Depresión adulto mayor","Dolor","Movilidad"],correct:1},
+{q:"Barthel evalúa:",a:["Dependencia funcional","Depresión","Ansiedad","Dolor"],correct:0},
+{q:"Usuario con IMC 32 corresponde a:",a:["Sobrepeso","Obesidad grado I","Normal","Bajo peso"],correct:1},
+{q:"Derivación secundaria APS ocurre cuando:",a:["Paciente lo solicita","Caso supera resolutividad APS","Siempre en GES","Nunca en APS"],correct:1},
+{q:"Control sano infantil evalúa:",a:["Solo vacunas","Solo peso","Desarrollo integral","Solo talla"],correct:2},
+{q:"Instrumento detección rezago desarrollo:",a:["TEPSI","Yesavage","Barthel","EMPAM"],correct:0},
+{q:"Programa cardiovascular incluye:",a:["HTA y DM2","Solo HTA","Solo DM2","Solo obesidad"],correct:0},
+{q:"Factor riesgo CV modificable:",a:["Edad","Sedentarismo","Sexo","Genética"],correct:1},
+{q:"Examen anual DM2 APS:",a:["Hemoglobina glicosilada","Radiografía","EEG","Endoscopía"],correct:0},
+{q:"Meta PA habitual en HTA controlada:",a:["<140/90","<160/100","<150/95","<170/100"],correct:0},
+{q:"Control adolescente incluye:",a:["Solo vacunas","Evaluación biopsicosocial","Solo talla","Solo peso"],correct:1},
+{q:"Evaluación familiar APS usa:",a:["Genograma","Electrocardiograma","Radiografía","Endoscopía"],correct:0},
+{q:"Ecomapa evalúa:",a:["Relaciones familiares externas","Función renal","Peso","Presión"],correct:0},
+{q:"Caso: adulto mayor con caída reciente requiere:",a:["Alta inmediata","Evaluación funcional","Solo analgesia","Solo reposo"],correct:1},
+{q:"Caso: niño con fiebre 39°C persistente:",a:["Alta inmediata","Evaluación médica","Solo líquidos","Solo reposo"],correct:1},
+{q:"Consejería breve APS busca:",a:["Cambiar conducta saludable","Diagnóstico hospitalario","Cirugía","Hospitalización"],correct:0},
+{q:"Usuario con tabaquismo activo requiere:",a:["Solo control anual","Consejería y seguimiento","Alta inmediata","Derivación obligatoria hospital"],correct:1},
+{q:"Vacuna influenza prioriza:",a:["Niños y crónicos","Solo adultos sanos","Solo embarazadas","Solo adolescentes"],correct:0},
+{q:"GES HTA garantiza:",a:["Acceso tratamiento","Cirugía inmediata","Hospitalización obligatoria","Trasplante"],correct:0},
+{q:"APS coordina continuidad mediante:",a:["Referencia y contrarreferencia","Alta hospitalaria exclusiva","Seguro privado","Laboratorio externo"],correct:0},
+{q:"PRAPS incentiva:",a:["Metas sanitarias","Cirugías","Hospitalizaciones","Urgencias"],correct:0},
+{q:"Evaluación nutricional infantil usa:",a:["Curvas OMS","Barthel","Yesavage","Framingham"],correct:0},
+{q:"Caso: glicemia capilar 60 mg/dl:",a:["Hiperglicemia","Hipoglicemia","Normal","DM2"],correct:1},
+{q:"Hipoglicemia leve manejo inicial:",a:["Azúcar oral","Insulina","Reposo absoluto","Ayuno"],correct:0},
+{q:"Programa salud mental APS incluye:",a:["Depresión","Solo esquizofrenia","Solo bipolaridad","Solo ansiedad severa"],correct:0},
+{q:"Tamizaje depresión APS usa:",a:["PHQ-9","Barthel","TEPSI","EFAM"],correct:0},
+{q:"Caso: PA 180/110 mmHg:",a:["Normal","Urgencia hipertensiva","PreHTA","Control anual"],correct:1},
+{q:"Control puérpera incluye:",a:["Salud mental","Solo peso","Solo talla","Solo vacunas"],correct:0},
+{q:"Red asistencial APS depende de:",a:["Servicio Salud","Clínicas privadas","Universidades","Laboratorios"],correct:0},
+{q:"Sectorización CESFAM permite:",a:["Continuidad atención","Alta hospitalaria","Cirugía","Urgencia"],correct:0},
+{q:"Visita domiciliaria integral evalúa:",a:["Contexto familiar","Solo PA","Solo peso","Solo talla"],correct:0},
+{q:"Caso: adulto con disnea súbita APS:",a:["Control anual","Evaluación urgente","Alta inmediata","Consejería"],correct:1}],
+dificil:[{q:"Paciente DM2 con HbA1c 9.5% pese a metformina dosis máxima en APS requiere:",a:["Suspender tratamiento","Agregar segundo hipoglicemiante","Alta del programa","Solo dieta"],correct:1},
+{q:"HTA con PA 165/100 persistente en controles seriados corresponde a:",a:["Control adecuado","HTA etapa 2","Prehipertensión","Urgencia hipertensiva"],correct:1},
+{q:"Paciente con disartria súbita y hemiparesia en CESFAM requiere:",a:["Control en 48h","Derivación inmediata vía ACV","Control cardiovascular","Educación domiciliaria"],correct:1},
+{q:"Error crítico previo a medición correcta de PA:",a:["Reposo 5 minutos","Paciente sentado","Cruzar piernas","Manguito adecuado"],correct:2},
+{q:"GES DM2 garantiza principalmente:",a:["Cirugía vascular","Acceso diagnóstico y tratamiento","Hospitalización inmediata","Trasplante"],correct:1},
+{q:"Adulto mayor EFAM B requiere:",a:["Alta del programa","Seguimiento funcional","Hospitalización","Solo control anual"],correct:1},
+{q:"Depresión moderada APS manejo inicial:",a:["Alta inmediata","ISRS + seguimiento","Solo derivación secundaria","Solo consejería"],correct:1},
+{q:"PHQ-9 ≥15 sugiere:",a:["Depresión leve","Depresión moderada-severa","Ansiedad leve","Normalidad"],correct:1},
+{q:"Usuario con glicemia 58 mg/dl consciente manejo inicial:",a:["Insulina","Glucosa oral","Ayuno","Reposo"],correct:1},
+{q:"Usuario con IMC 35 corresponde a:",a:["Sobrepeso","Obesidad grado I","Obesidad grado II","Obesidad mórbida"],correct:2},
+{q:"Factor riesgo CV no modificable:",a:["Sedentarismo","Edad","Tabaquismo","Obesidad"],correct:1},
+{q:"Paciente HTA + DM2 meta PA sugerida:",a:["<140/90","<150/95","<130/80","<160/100"],correct:2},
+{q:"Niño con retracción subcostal corresponde a:",a:["IRA leve","IRA moderada-grave","Resfrío común","Normal"],correct:1},
+{q:"Control prenatal APS detecta precozmente:",a:["Solo anemia","Factores riesgo obstétrico","Solo peso fetal","Solo edad gestacional"],correct:1},
+{q:"Puérpera con llanto persistente y anhedonia sospecha:",a:["Depresión puerperal","Ansiedad leve","Estrés normal","Tristeza transitoria"],correct:0},
+{q:"Visita domiciliaria integral prioriza:",a:["Solo control signos vitales","Evaluación biopsicosocial","Solo glicemia","Solo PA"],correct:1},
+{q:"Programa cardiovascular incluye evaluación anual de:",a:["HbA1c","Radiografía tórax","EEG","TAC"],correct:0},
+{q:"Usuario tabaquista motivación baja etapa:",a:["Acción","Preparación","Precontemplación","Mantención"],correct:2},
+{q:"Caso: PA 185/110 sin síntomas:",a:["Normal","Urgencia hipertensiva","HTA controlada","PreHTA"],correct:1},
+{q:"Caso: PA 185/110 + cefalea intensa:",a:["HTA controlada","Emergencia hipertensiva sospecha","Normal","PreHTA"],correct:1},
+{q:"GES depresión incluye:",a:["Solo hospitalización","Diagnóstico, tratamiento y seguimiento","Solo diagnóstico","Solo consejería"],correct:1},
+{q:"Usuario con EFAM C requiere:",a:["Seguimiento intensivo","Alta programa","Solo control anual","Sin intervención"],correct:0},
+{q:"Consejería breve efectiva dura aproximadamente:",a:["30 minutos","3 minutos estructurados","1 hora","Sin tiempo definido"],correct:1},
+{q:"Instrumento familiar APS estructura:",a:["Ecomapa","Genograma","Barthel","Framingham"],correct:1},
+{q:"Ecomapa evalúa:",a:["Relaciones entorno-red apoyo","Función renal","Movilidad","Peso"],correct:0},
+{q:"Usuario con glicemia 320 mg/dl poliuria polidipsia:",a:["Control anual","Evaluación médica prioritaria","Alta programa","Consejería exclusiva"],correct:1},
+{q:"Error frecuente en insulinoterapia APS:",a:["Rotación sitios","No educación técnica","Uso aguja corta","Control glicemia"],correct:1},
+{q:"Control adolescente incluye pesquisa:",a:["Conductas riesgo","Solo IMC","Solo vacunas","Solo PA"],correct:0},
+{q:"Sectorización permite:",a:["Continuidad cuidados","Alta hospitalaria","Cirugía menor","Urgencias exclusivas"],correct:0},
+{q:"Referencia APS significa:",a:["Alta médica","Derivación nivel mayor complejidad","Ingreso hospitalario obligatorio","Contrarreferencia"],correct:1},
+{q:"Contrarreferencia permite:",a:["Seguimiento APS posterior","Alta definitiva","Cirugía","Urgencia"],correct:0},
+{q:"Usuario con disnea súbita APS conducta:",a:["Control anual","Evaluación urgente","Consejería","Alta inmediata"],correct:1},
+{q:"Paciente adulto mayor caída reciente:",a:["Evaluación funcional integral","Alta inmediata","Solo analgesia","Control anual"],correct:0},
+{q:"Caso: lactante fiebre 39°C sin foco:",a:["Control semanal","Evaluación médica inmediata","Alta inmediata","Solo líquidos"],correct:1},
+{q:"GES HTA incluye:",a:["Tratamiento farmacológico garantizado","Solo diagnóstico","Solo exámenes","Solo control anual"],correct:0},
+{q:"Consejería tabaco incluye:",a:["Intervención breve estructurada","Solo folleto","Solo derivación","Solo control anual"],correct:0},
+{q:"Usuario con TEPSI alterado requiere:",a:["Seguimiento desarrollo","Alta inmediata","Solo control anual","Hospitalización"],correct:0},
+{q:"Evaluación EMPAM incluye:",a:["Funcionalidad integral","Solo PA","Solo glicemia","Solo peso"],correct:0},
+{q:"GES embarazo incluye:",a:["Control prenatal oportuno","Solo parto","Solo ecografía","Solo laboratorio"],correct:0},
+{q:"APS resuelve aproximadamente:",a:["20% problemas salud","40% problemas salud","80% problemas salud","100% problemas salud"],correct:2},
+{q:"PRAPS incentiva cumplimiento:",a:["Metas sanitarias APS","Hospitalizaciones","Cirugías mayores","Urgencias"],correct:0},
+{q:"Paciente con HbA1c 6.8% DM2 corresponde:",a:["Control adecuado","Descompensado","Hipoglicemia","Normal"],correct:0},
+{q:"Evaluación riesgo CV alto requiere:",a:["Intervención intensiva","Alta programa","Solo consejería","Control anual"],correct:0},
+{q:"Caso: adulto con dolor torácico opresivo:",a:["Control anual","Evaluación urgente derivación","Consejería","Alta inmediata"],correct:1},
+{q:"GES cáncer cervicouterino incluye:",a:["Tamizaje PAP","Solo tratamiento","Solo cirugía","Solo biopsia"],correct:0},
+{q:"Usuario con dependencia moderada Barthel:",a:["Seguimiento domiciliario","Alta inmediata","Solo control anual","Sin intervención"],correct:0},
+{q:"Caso: depresión + ideación suicida:",a:["Control mensual","Derivación urgente salud mental","Consejería exclusiva","Alta inmediata"],correct:1},
+{q:"APS modelo atención es:",a:["Biomédico","Biopsicosocial","Hospitalario","Privado"],correct:1},
+{q:"Continuidad cuidados significa:",a:["Seguimiento longitudinal usuario","Alta hospitalaria","Solo derivación","Solo diagnóstico"],correct:0},
+{q:"Integralidad APS incluye:",a:["Promoción prevención tratamiento rehabilitación","Solo tratamiento","Solo diagnóstico","Solo promoción"],correct:0}],
+extremo:[{q:"Paciente DM2 con HbA1c 10.8% + baja adherencia + riesgo CV alto en APS requiere prioridad:",a:["Alta programa","Educación aislada","Intensificación farmacológica + seguimiento estrecho","Control anual"],correct:2},
+{q:"Paciente con PA 180/120 + disnea en CESFAM conducta inmediata:",a:["Control 48h","Urgencia hipertensiva manejo local","Sospecha emergencia hipertensiva derivación urgente","Consejería"],correct:2},
+{q:"Usuaria con PHQ-9=22 en control cardiovascular conducta APS:",a:["Control anual","ISRS + derivación prioritaria salud mental","Alta inmediata","Solo consejería"],correct:1},
+{q:"Error crítico en consejería tabaco que invalida intervención:",a:["Uso preguntas abiertas","No evaluar etapa cambio","Explorar motivación","Refuerzo positivo"],correct:1},
+{q:"Paciente con dolor torácico opresivo + sudoración en CESFAM conducta:",a:["Control diferido","ECG y derivación urgente","Consejería nutricional","Alta inmediata"],correct:1},
+{q:"Usuaria gestante 28 semanas PA 150/100 conducta APS:",a:["Alta control prenatal","Sospecha SHE derivación inmediata","Consejería dieta","Control mensual"],correct:1},
+{q:"Adulto mayor EFAM C + caída reciente priorización:",a:["Alta programa","Evaluación riesgo dependencia severa","Solo analgesia","Control anual"],correct:1},
+{q:"Paciente con glicemia 52 mg/dl consciente conducta inicial:",a:["Insulina SC","Glucosa oral inmediata","Ayuno","Alta inmediata"],correct:1},
+{q:"Error crítico en manejo hipoglicemia APS:",a:["Administrar glucosa oral","Retrasar tratamiento","Reevaluar glicemia","Educar signos alarma"],correct:1},
+{q:"Niño con tiraje subcostal + FR elevada prioridad:",a:["IRA leve control domiciliario","IRA moderada-grave evaluación médica inmediata","Alta inmediata","Control semanal"],correct:1},
+{q:"Paciente con riesgo CV ≥20% APS requiere:",a:["Consejería exclusiva","Intervención intensiva farmacológica","Alta programa","Solo control anual"],correct:1},
+{q:"Usuario con ideación suicida activa conducta APS:",a:["Consejería breve","Derivación urgente salud mental","Control mensual","Alta inmediata"],correct:1},
+{q:"Paciente HTA sin control pese triple terapia APS conducta:",a:["Alta programa","Sospecha HTA resistente derivación","Consejería exclusiva","Control anual"],correct:1},
+{q:"Gestante con disminución movimientos fetales refiere desde ayer conducta:",a:["Control habitual","Derivación urgente evaluación obstétrica","Consejería","Alta inmediata"],correct:1},
+{q:"Adulto con disnea súbita + taquipnea conducta APS:",a:["Control semanal","Evaluación urgente derivación","Consejería","Alta"],correct:1},
+{q:"Error crítico en control cardiovascular APS:",a:["No calcular riesgo CV","Educar dieta","Control PA","Control peso"],correct:0},
+{q:"Paciente con HbA1c 8.7% + ERC sospechada APS prioridad:",a:["Alta programa","Optimización control metabólico + derivación","Solo dieta","Control anual"],correct:1},
+{q:"Puérpera con anhedonia + insomnio + culpa conducta:",a:["Consejería exclusiva","Sospecha depresión puerperal manejo APS","Alta inmediata","Control anual"],correct:1},
+{q:"Paciente con sospecha ACV ventana terapéutica activa APS:",a:["Control 24h","Derivación inmediata código ACV","Consejería","Alta"],correct:1},
+{q:"Usuario con TEPSI alterado + factores riesgo social conducta:",a:["Alta programa","Seguimiento intensivo desarrollo","Solo control anual","Consejería exclusiva"],correct:1},
+{q:"Error crítico en control infantil APS:",a:["No evaluar desarrollo psicomotor","Medir peso","Medir talla","Educar lactancia"],correct:0},
+{q:"Adulto mayor Barthel moderado + vive solo prioridad:",a:["Alta programa","Evaluación dependencia severa domiciliaria","Control anual","Consejería"],correct:1},
+{q:"Paciente con PA 165/105 persistente + DM2 conducta:",a:["Meta <140/90","Meta <130/80 intensificar manejo","Alta programa","Consejería"],correct:1},
+{q:"Usuario con sospecha TB APS conducta inicial:",a:["Alta inmediata","Solicitud BK seriada","Consejería exclusiva","Control anual"],correct:1},
+{q:"Error crítico en sospecha TB APS:",a:["Solicitar BK","No pesquisar contactos","Educar adherencia","Notificar"],correct:1},
+{q:"Paciente con depresión + abandono controles crónicos prioridad:",a:["Alta programa","Seguimiento activo domiciliario","Consejería exclusiva","Control anual"],correct:1},
+{q:"Usuario con riesgo social alto sectorizado APS requiere:",a:["Alta programa","Intervención equipo multidisciplinario","Control anual","Consejería aislada"],correct:1},
+{q:"Paciente con ERC sospecha APS conducta:",a:["Alta programa","Derivación evaluación secundaria","Consejería exclusiva","Control anual"],correct:1},
+{q:"Error crítico en EMPAM:",a:["No aplicar EFAM","Medir PA","Evaluar audición","Evaluar visión"],correct:0},
+{q:"Paciente con glicemia ayuno 140 mg/dl repetida APS diagnóstico probable:",a:["Normal","Prediabetes","DM2 probable","Hipoglicemia"],correct:2},
+{q:"Paciente con cefalea intensa + PA 190/110 conducta:",a:["Control anual","Sospecha emergencia hipertensiva derivación","Consejería","Alta"],correct:1},
+{q:"Niño con retraso crecimiento + factores psicosociales prioridad:",a:["Alta programa","Evaluación integral familiar","Consejería exclusiva","Control anual"],correct:1},
+{q:"Paciente con obesidad grado II + HTA APS prioridad:",a:["Consejería exclusiva","Intervención multifactorial intensiva","Alta programa","Control anual"],correct:1},
+{q:"Error crítico en sectorización:",a:["Romper continuidad equipo","Asignar población","Seguimiento longitudinal","Plan familiar"],correct:0},
+{q:"Paciente con abandono tratamiento HTA conducta APS:",a:["Alta programa","Rescate adherencia activo","Consejería aislada","Control anual"],correct:1},
+{q:"Usuario con intento suicida reciente APS:",a:["Control mensual","Derivación urgente salud mental","Consejería","Alta"],correct:1},
+{q:"Paciente con sospecha VIF APS:",a:["Alta programa","Aplicar protocolo VIF","Consejería exclusiva","Control anual"],correct:1},
+{q:"Error crítico en VDI:",a:["No evaluar red apoyo","Medir PA","Evaluar entorno","Evaluar cuidadores"],correct:0},
+{q:"Adulto mayor polifarmacia APS prioridad:",a:["Alta programa","Revisión farmacológica estructurada","Consejería","Control anual"],correct:1},
+{q:"Paciente DM2 + pie con lesión APS conducta:",a:["Alta programa","Evaluación pie diabético inmediata","Consejería exclusiva","Control anual"],correct:1},
+{q:"Error crítico pie diabético APS:",a:["No examinar pies","Educar calzado","Evaluar pulsos","Evaluar sensibilidad"],correct:0},
+{q:"Usuario con riesgo CV moderado APS manejo:",a:["Alta programa","Intervención preventiva intensiva","Consejería aislada","Control anual"],correct:1},
+{q:"Paciente con anemia gestacional sospecha APS:",a:["Alta programa","Confirmación laboratorio + tratamiento","Consejería","Control anual"],correct:1},
+{q:"Error crítico control prenatal APS:",a:["No pesquisar factores riesgo","Medir PA","Solicitar exámenes","Educar signos alarma"],correct:0},
+{q:"Paciente con abandono EMPA repetido APS:",a:["Alta programa","Búsqueda activa sectorizada","Consejería","Control anual"],correct:1},
+{q:"Usuario con consumo riesgoso alcohol APS:",a:["Alta programa","Intervención breve estructurada","Consejería aislada","Control anual"],correct:1},
+{q:"Paciente con dolor lumbar + déficit neurológico APS:",a:["Control anual","Derivación urgente","Consejería","Alta"],correct:1},
+{q:"Error crítico continuidad cuidados APS:",a:["No contrarreferenciar","Educar paciente","Registrar ficha","Seguimiento"],correct:0},
+{q:"Paciente con multimorbilidad APS requiere:",a:["Alta programa","Plan cuidado individualizado","Consejería aislada","Control anual"],correct:1},
+{q:"Principio clave modelo APS avanzado:",a:["Atención episódica","Continuidad longitudinal","Hospitalización precoz","Especialización exclusiva"],correct:1}],
+},
+
+dom:{
+facil:[{q:"El Programa de Atención Domiciliaria Integral está dirigido principalmente a:",a:["Pacientes hospitalizados","Personas con dependencia severa","Solo adultos jóvenes","Solo embarazadas"],correct:1},
+{q:"Instrumento utilizado para medir dependencia severa en adultos:",a:["PHQ-9","Barthel","Framingham","Yesavage"],correct:1},
+{q:"El programa PADDS se desarrolla principalmente en:",a:["Hospitales terciarios","Domicilio del paciente","Clínicas privadas","SAPU"],correct:1},
+{q:"El equipo responsable del programa pertenece a:",a:["Nivel terciario","APS","Clínica privada","Laboratorio"],correct:1},
+{q:"La visita domiciliaria integral permite:",a:["Solo vacunar","Evaluar entorno familiar","Solo controlar PA","Solo entregar medicamentos"],correct:1},
+{q:"El plan de cuidados domiciliarios se realiza:",a:["Sin familia","Con participación cuidador","Solo médico","Solo enfermera"],correct:1},
+{q:"La atención domiciliaria sigue modelo:",a:["Hospitalario","Biopsicosocial familiar","Privado","Especialista exclusivo"],correct:1},
+{q:"El cuidador puede ser:",a:["Solo profesional salud","Solo familiar directo","Familiar o cercano","Solo técnico"],correct:2},
+{q:"El programa incluye apoyo a:",a:["Solo paciente","Paciente y cuidador","Solo familia","Solo médico"],correct:1},
+{q:"Dependencia severa según Barthel corresponde aproximadamente a:",a:["≥90 puntos","≤35 puntos","70 puntos","50 puntos"],correct:1},
+{q:"Una actividad clave del programa es:",a:["Cirugía domiciliaria","Visita domiciliaria integral","Hospitalización prolongada","Solo laboratorio"],correct:1},
+{q:"El programa busca mejorar:",a:["Solo diagnóstico","Calidad de vida","Solo tratamiento","Solo hospitalización"],correct:1},
+{q:"La atención domiciliaria incluye:",a:["Promoción salud","Prevención","Tratamiento","Todas las anteriores"],correct:3},
+{q:"El ingreso al programa requiere:",a:["Inscripción APS","Seguro privado","Hospitalización previa","Consulta especialista"],correct:0},
+{q:"El cuidador puede recibir:",a:["Alta médica","Estipendio apoyo","Licencia automática","Hospitalización"],correct:1},
+{q:"El equipo debe realizar al ingreso:",a:["Radiografía","VDI","Cirugía menor","Alta inmediata"],correct:1},
+{q:"El plan de cuidados se elabora:",a:["Sin evaluación","Tras VDI","Solo hospital","Solo SOME"],correct:1},
+{q:"El programa incluye capacitación a:",a:["Paciente únicamente","Cuidador","Solo médico","Solo kinesiólogo"],correct:1},
+{q:"El enfoque del programa es:",a:["Curativo exclusivo","Integral","Hospitalario","Privado"],correct:1},
+{q:"La continuidad del cuidado implica:",a:["Seguimiento domiciliario","Alta inmediata","Sin controles","Solo hospital"],correct:0},
+{q:"Una prestación frecuente en domicilio es:",a:["Curación simple","Cirugía mayor","Hemodiálisis","Endoscopía"],correct:0},
+{q:"Pacientes elegibles deben estar:",a:["Inscritos APS","Solo hospitalizados","Solo SAPU","Solo urgencia"],correct:0},
+{q:"La familia participa en:",a:["Solo diagnóstico","Plan cuidados","Solo derivación","Solo hospitalización"],correct:1},
+{q:"El programa evalúa también:",a:["Red apoyo","Solo PA","Solo glicemia","Solo peso"],correct:0},
+{q:"VDI significa:",a:["Valoración domiciliaria integral","Visita domiciliaria integral","Valoración diagnóstico inicial","Visita diagnóstico institucional"],correct:1},
+{q:"Una función del equipo es:",a:["Educar cuidador","Solo derivar","Solo hospitalizar","Solo operar"],correct:0},
+{q:"El programa considera necesidades:",a:["Biológicas","Psicológicas","Sociales","Todas"],correct:3},
+{q:"Un objetivo del programa es:",a:["Reducir hospitalización evitable","Aumentar hospitalización","Eliminar controles","Eliminar visitas"],correct:0},
+{q:"Seguimiento domiciliario permite:",a:["Evaluar plan cuidados","Suspender controles","Eliminar familia","Solo registrar PA"],correct:0},
+{q:"Visita seguimiento verifica:",a:["Cumplimiento cuidados","Alta inmediata","Cirugía","Hospitalización"],correct:0},
+{q:"Equipo salud incluye:",a:["Solo médico","Equipo multidisciplinario","Solo enfermera","Solo TENS"],correct:1},
+{q:"Programa fortalece:",a:["Autocuidado familiar","Hospitalización","Urgencias","Cirugía"],correct:0},
+{q:"Paciente con dependencia severa requiere:",a:["Apoyo continuo","Control anual","Alta inmediata","Solo dieta"],correct:0},
+{q:"El entorno domiciliario permite evaluar:",a:["Factores riesgo hogar","Solo peso","Solo talla","Solo glicemia"],correct:0},
+{q:"Plan cuidados incluye acciones:",a:["Promoción","Prevención","Tratamiento","Todas"],correct:3},
+{q:"El cuidador es parte de:",a:["Problema","Unidad cuidado","Alta médica","Hospitalización"],correct:1},
+{q:"Programa permite:",a:["Atención continua","Alta inmediata","Sin seguimiento","Solo derivación"],correct:0},
+{q:"Dependencia severa afecta:",a:["AVD básicas","Solo deporte","Solo trabajo","Solo ocio"],correct:0},
+{q:"Una acción APS en domicilio es:",a:["Educación salud","Cirugía mayor","Hospitalización","Trasplante"],correct:0},
+{q:"Plan cuidados debe ser:",a:["Consensuado familia","Solo médico","Solo SOME","Solo hospital"],correct:0},
+{q:"El programa incluye evaluación:",a:["Cuidador","Solo paciente","Solo médico","Solo hospital"],correct:0},
+{q:"Prestación frecuente en domicilio:",a:["Control signos vitales","Trasplante","Hemodiálisis","Endoscopía"],correct:0},
+{q:"Objetivo del programa incluye:",a:["Mantener funcionalidad","Eliminar controles","Hospitalizar","Solo derivar"],correct:0},
+{q:"VDI permite detectar:",a:["Necesidades familiares","Solo glicemia","Solo talla","Solo PA"],correct:0},
+{q:"El programa pertenece a:",a:["APS","Nivel terciario","Clínica privada","SAPU"],correct:0},
+{q:"Apoyo al cuidador busca:",a:["Fortalecer cuidado","Eliminar visitas","Hospitalizar","Suspender controles"],correct:0},
+{q:"El plan cuidados se evalúa:",a:["Seguimiento domiciliario","Solo hospital","Nunca","Solo SOME"],correct:0},
+{q:"Beneficiarios incluyen:",a:["Paciente dependiente","Cuidador","Familia","Todos"],correct:3},
+{q:"La atención domiciliaria es:",a:["Integral","Parcial","Hospitalaria","Privada"],correct:0},
+{q:"El programa favorece:",a:["Continuidad atención","Alta inmediata","Sin controles","Solo derivación"],correct:0},
+{q:"El equipo debe registrar:",a:["Prestaciones realizadas","Solo peso","Solo talla","Solo glicemia"],correct:0}],
+
+medio:[{q:"Criterio principal ingreso PADDS APS:",a:["Paciente hospitalizado","Dependencia severa funcional","Solo edad avanzada","Solo diagnóstico crónico"],correct:1},
+{q:"Barthel ≤35 puntos indica:",a:["Dependencia leve","Dependencia moderada","Dependencia severa","Independencia"],correct:2},
+{q:"La VDI inicial permite:",a:["Alta inmediata","Evaluación integral biopsicosocial","Solo control PA","Solo control glicemia"],correct:1},
+{q:"Un objetivo PADDS es:",a:["Aumentar hospitalizaciones","Reducir hospitalizaciones evitables","Eliminar controles APS","Reemplazar hospital"],correct:1},
+{q:"Rol enfermería en PADDS incluye:",a:["Solo registro ficha","Gestión plan cuidados domiciliarios","Solo derivación","Solo educación"],correct:1},
+{q:"Cuidador principal corresponde a:",a:["Solo profesional salud","Persona responsable cuidado diario","Solo familiar directo","Solo TENS"],correct:1},
+{q:"Error frecuente en PADDS:",a:["Evaluar cuidador","No evaluar entorno domiciliario","Realizar VDI","Planificar cuidados"],correct:1},
+{q:"Paciente dependiente severo requiere control:",a:["Esporádico","Seguimiento periódico domiciliario","Solo hospital","Solo SAPU"],correct:1},
+{q:"UPP prevención domiciliaria incluye:",a:["Cambios posición","Solo antibióticos","Solo curaciones avanzadas","Solo analgesia"],correct:0},
+{q:"Signo riesgo UPP:",a:["Piel íntegra rosada","Eritema persistente presión","Sudoración normal","Movilidad conservada"],correct:1},
+{q:"Pie diabético domiciliario requiere:",a:["Evaluación periódica pies","Alta inmediata","Solo glicemia","Solo dieta"],correct:0},
+{q:"Oxigenoterapia domiciliaria indicada en:",a:["Hipoxemia crónica","HTA","Diabetes","Anemia leve"],correct:0},
+{q:"GES aplicable frecuente PADDS:",a:["HTA","Depresión","DM2","Todas"],correct:3},
+{q:"Polifarmacia adulto mayor se define como:",a:["≥2 fármacos","≥3 fármacos","≥5 fármacos","≥10 fármacos"],correct:2},
+{q:"Riesgo polifarmacia incluye:",a:["Adherencia mejorada","Interacciones medicamentosas","Alta inmediata","Menor seguimiento"],correct:1},
+{q:"VDI evalúa red apoyo:",a:["Sí","No","Solo hospital","Solo SOME"],correct:0},
+{q:"Plan cuidados domiciliarios debe:",a:["Actualizarse periódicamente","Ser único","No modificarse","Solo hospital"],correct:0},
+{q:"Paciente con disfagia domiciliaria riesgo:",a:["HTA","Aspiración","Obesidad","Hiperglicemia"],correct:1},
+{q:"Educación cuidador incluye:",a:["Movilización segura","Solo medicamentos","Solo signos vitales","Solo dieta"],correct:0},
+{q:"Error frecuente cuidador:",a:["Sobrecarga","Educación adecuada","Apoyo familiar","Plan cuidados"],correct:0},
+{q:"VDI permite detectar:",a:["Riesgos ambientales","Solo peso","Solo talla","Solo glicemia"],correct:0},
+{q:"Seguimiento PADDS incluye:",a:["Reevaluación funcional","Alta inmediata","Solo hospital","Solo SOME"],correct:0},
+{q:"Dependencia severa afecta:",a:["AVD básicas","Solo recreación","Solo trabajo","Solo ejercicio"],correct:0},
+{q:"Cuidador sobrecargado requiere:",a:["Intervención apoyo","Alta inmediata","Solo dieta","Solo control anual"],correct:0},
+{q:"UPP estadio inicial corresponde:",a:["Eritema persistente","Úlcera profunda","Necrosis","Exposición hueso"],correct:0},
+{q:"Rol equipo multidisciplinario PADDS:",a:["Integral","Exclusivo médico","Solo enfermera","Solo kinesiólogo"],correct:0},
+{q:"Visita seguimiento permite:",a:["Evaluar adherencia cuidados","Alta inmediata","Solo hospital","Solo SOME"],correct:0},
+{q:"Paciente post ACV domiciliario requiere:",a:["Rehabilitación","Alta inmediata","Solo dieta","Solo control anual"],correct:0},
+{q:"GES ACV incluye:",a:["Seguimiento","Solo hospital","Solo cirugía","Solo laboratorio"],correct:0},
+{q:"Evaluación entorno domiciliario incluye:",a:["Barreras arquitectónicas","Solo glicemia","Solo PA","Solo peso"],correct:0},
+{q:"Paciente con sonda vesical domiciliaria requiere:",a:["Control permeabilidad","Alta inmediata","Solo dieta","Solo glicemia"],correct:0},
+{q:"Signo infección urinaria sondaje:",a:["Fiebre","PA normal","Peso estable","Talla estable"],correct:0},
+{q:"Paciente con escasa red apoyo riesgo:",a:["Mayor institucionalización","Alta inmediata","Menor seguimiento","Menor dependencia"],correct:0},
+{q:"VDI identifica cuidador:",a:["Principal","Secundario","Ambos","Ninguno"],correct:2},
+{q:"Paciente con EPOC domiciliario requiere:",a:["Control disnea","Alta inmediata","Solo dieta","Solo talla"],correct:0},
+{q:"Signo alarma EPOC domiciliario:",a:["Disnea progresiva","Peso normal","PA normal","Talla normal"],correct:0},
+{q:"Educación farmacológica incluye:",a:["Horarios correctos","Solo nombre","Solo envase","Solo receta"],correct:0},
+{q:"Error frecuente polifarmacia:",a:["Duplicidad terapéutica","Educación cuidador","Control médico","Seguimiento"],correct:0},
+{q:"Paciente con inmovilidad prolongada riesgo:",a:["Trombosis","Hipertensión","Diabetes","Obesidad"],correct:0},
+{q:"Prevención trombosis domiciliaria incluye:",a:["Movilización","Solo antibióticos","Solo dieta","Solo reposo"],correct:0},
+{q:"VDI permite priorizar:",a:["Intervenciones","Solo diagnóstico","Solo hospital","Solo SOME"],correct:0},
+{q:"Paciente dependiente severo requiere:",a:["Plan individual cuidados","Alta inmediata","Solo dieta","Solo control anual"],correct:0},
+{q:"GES depresión domiciliaria incluye:",a:["Tratamiento APS","Solo hospital","Solo cirugía","Solo laboratorio"],correct:0},
+{q:"Signo alarma depresión cuidador:",a:["Sobrecarga emocional","Peso normal","PA normal","Talla normal"],correct:0},
+{q:"Paciente con gastrostomía requiere:",a:["Control sitio inserción","Alta inmediata","Solo dieta","Solo glicemia"],correct:0},
+{q:"Complicación gastrostomía:",a:["Infección local","Hipertensión","Obesidad","Diabetes"],correct:0},
+{q:"Seguimiento PADDS fortalece:",a:["Continuidad cuidados","Alta inmediata","Hospitalización","Cirugía"],correct:0},
+{q:"Equipo PADDS coordina con:",a:["Red asistencial","Solo hospital","Solo SOME","Solo laboratorio"],correct:0},
+{q:"Derivación secundaria ocurre cuando:",a:["Supera resolutividad APS","Paciente estable","Alta inmediata","Solo dieta"],correct:0},
+{q:"Objetivo PADDS incluye:",a:["Mantener funcionalidad","Hospitalizar","Eliminar controles","Suspender visitas"],correct:0}],
+
+dificil:[{q:"Paciente Barthel 25 puntos + dependencia en AVD básicas corresponde a:",a:["Dependencia leve","Dependencia moderada","Dependencia severa ingreso PADDS","Independencia funcional"],correct:2},
+{q:"Criterio prioritario ingreso PADDS APS:",a:["Edad mayor 65 años","Dependencia severa funcional","Diagnóstico HTA","Uso polifarmacia"],correct:1},
+{q:"Paciente PADDS con cuidador ausente conducta:",a:["Alta programa","Evaluar red apoyo alternativa","Mantener seguimiento sin cambios","Solo educación paciente"],correct:1},
+{q:"Error crítico en VDI inicial PADDS:",a:["Evaluar entorno","Evaluar cuidador","No evaluar red apoyo","Evaluar funcionalidad"],correct:2},
+{q:"Paciente con eritema persistente zona sacra corresponde a:",a:["UPP estadio 1","UPP estadio 2","UPP estadio 3","UPP estadio 4"],correct:0},
+{q:"UPP estadio 2 corresponde a:",a:["Eritema persistente","Pérdida parcial dermis","Exposición hueso","Necrosis profunda"],correct:1},
+{q:"Paciente PADDS con fiebre + sonda vesical sospecha:",a:["ITU asociada a catéter","Hipertensión","Hipoglicemia","Obesidad"],correct:0},
+{q:"Error frecuente manejo sonda vesical domiciliaria:",a:["Control permeabilidad","Sistema cerrado","No evaluar signos infección","Educación cuidador"],correct:2},
+{q:"Paciente con disfagia + tos durante alimentación riesgo:",a:["Bronquitis","Aspiración bronquial","Hipertensión","Obesidad"],correct:1},
+{q:"Medida preventiva aspiración domiciliaria:",a:["Alimentación decúbito supino","Cabecera elevada","Reposo absoluto","Ayuno prolongado"],correct:1},
+{q:"Paciente con gastrostomía eritema periestomal conducta:",a:["Alta programa","Evaluar infección local","Suspender alimentación","Retirar sonda"],correct:1},
+{q:"Complicación frecuente gastrostomía domiciliaria:",a:["Hipertensión","Infección local","Diabetes","Anemia"],correct:1},
+{q:"Paciente PADDS con EPOC + disnea progresiva conducta:",a:["Alta programa","Evaluación médica prioritaria","Control anual","Solo educación"],correct:1},
+{q:"Indicador oxigenoterapia domiciliaria adecuada:",a:["SatO2 normal sin O2","Hipoxemia crónica confirmada","HTA","Diabetes"],correct:1},
+{q:"Error frecuente oxigenoterapia domiciliaria:",a:["Control saturación","Educación cuidador","Uso sin indicación clínica","Seguimiento médico"],correct:2},
+{q:"Paciente con polifarmacia ≥5 fármacos requiere:",a:["Alta programa","Revisión farmacológica estructurada","Solo educación","Control anual"],correct:1},
+{q:"Duplicidad terapéutica domiciliaria corresponde a:",a:["Uso correcto medicamentos","Uso mismo fármaco mismo grupo repetido","Uso dosis correcta","Uso horario correcto"],correct:1},
+{q:"Paciente post ACV dependiente severo prioridad PADDS:",a:["Alta programa","Rehabilitación domiciliaria coordinada","Solo dieta","Solo control anual"],correct:1},
+{q:"Error frecuente seguimiento post ACV domiciliario:",a:["Evaluar movilidad","Evaluar deglución","No evaluar riesgo aspiración","Evaluar cuidador"],correct:2},
+{q:"Paciente con úlcera pie diabético domiciliario conducta:",a:["Alta programa","Evaluación inmediata pie","Solo control glicemia","Solo dieta"],correct:1},
+{q:"Error crítico pie diabético PADDS:",a:["Evaluar sensibilidad","Evaluar pulsos","No inspeccionar pies","Educar calzado"],correct:2},
+{q:"Paciente PADDS con glicemia 60 mg/dl consciente conducta:",a:["Insulina","Glucosa oral inmediata","Ayuno","Alta programa"],correct:1},
+{q:"Paciente PADDS con glicemia 350 mg/dl poliuria conducta:",a:["Alta programa","Evaluación médica prioritaria","Solo dieta","Solo control anual"],correct:1},
+{q:"Sobrecarga cuidador se sospecha cuando:",a:["Apoyo familiar adecuado","Fatiga emocional persistente","Plan cuidados activo","Seguimiento adecuado"],correct:1},
+{q:"Intervención APS ante sobrecarga cuidador:",a:["Alta programa","Apoyo psicosocial","Solo educación paciente","Solo control anual"],correct:1},
+{q:"Paciente PADDS con abandono controles conducta:",a:["Alta inmediata","Búsqueda activa domiciliaria","Solo educación","Control anual"],correct:1},
+{q:"Error continuidad cuidados PADDS:",a:["Seguimiento domiciliario","Registro ficha","No contrarreferencia","Evaluación funcional"],correct:2},
+{q:"Paciente PADDS con riesgo caída domiciliaria intervención:",a:["Alta programa","Evaluar barreras arquitectónicas","Solo dieta","Solo educación"],correct:1},
+{q:"Factor riesgo caída domiciliaria frecuente:",a:["Iluminación adecuada","Alfombras sueltas","Pasillos despejados","Barandas instaladas"],correct:1},
+{q:"Paciente PADDS con deterioro cognitivo requiere:",a:["Alta programa","Evaluación cuidador principal","Solo dieta","Solo control anual"],correct:1},
+{q:"Error frecuente deterioro cognitivo domiciliario:",a:["Evaluar memoria","Evaluar orientación","No evaluar seguridad hogar","Evaluar cuidador"],correct:2},
+{q:"Paciente PADDS con escasa red apoyo riesgo:",a:["Alta inmediata","Institucionalización","Alta funcionalidad","Menor dependencia"],correct:1},
+{q:"VDI permite priorizar intervenciones según:",a:["Diagnóstico hospitalario","Necesidades biopsicosociales","Solo laboratorio","Solo imagenología"],correct:1},
+{q:"Paciente PADDS con sonda nasogástrica requiere:",a:["Control fijación","Alta programa","Solo dieta","Solo glicemia"],correct:0},
+{q:"Complicación sonda nasogástrica domiciliaria:",a:["Hipertensión","Broncoaspiración","Diabetes","Anemia"],correct:1},
+{q:"Paciente PADDS con inmovilidad prolongada riesgo:",a:["Hipertensión","TVP","Diabetes","Obesidad"],correct:1},
+{q:"Prevención TVP domiciliaria incluye:",a:["Reposo absoluto","Movilización asistida","Ayuno","Suspender cuidados"],correct:1},
+{q:"Paciente PADDS con dolor persistente requiere:",a:["Alta programa","Evaluación analgésica estructurada","Solo dieta","Solo control anual"],correct:1},
+{q:"Error frecuente manejo dolor domiciliario:",a:["Evaluar EVA","No registrar intensidad dolor","Control farmacológico","Seguimiento"],correct:1},
+{q:"Paciente PADDS con anemia sospechada requiere:",a:["Alta programa","Confirmación laboratorio APS","Solo dieta","Solo control anual"],correct:1},
+{q:"Paciente PADDS con depresión cuidador requiere:",a:["Alta programa","Intervención salud mental APS","Solo educación","Control anual"],correct:1},
+{q:"Paciente PADDS con lesión piel húmeda riesgo:",a:["UPP","Hipertensión","Diabetes","Anemia"],correct:0},
+{q:"Prevención maceración piel incluye:",a:["Humedad prolongada","Higiene piel adecuada","Reposo absoluto","Ayuno"],correct:1},
+{q:"Paciente PADDS con abandono terapéutico conducta:",a:["Alta programa","Intervención adherencia activa","Solo dieta","Control anual"],correct:1},
+{q:"Paciente PADDS con SatO2 86% domiciliaria conducta:",a:["Alta programa","Evaluación urgente","Solo educación","Control anual"],correct:1},
+{q:"Error frecuente manejo SatO2 baja domiciliaria:",a:["Evaluar oxígeno","Derivar","No intervenir","Seguimiento"],correct:2},
+{q:"Paciente PADDS con deterioro funcional progresivo conducta:",a:["Alta programa","Reevaluación Barthel","Solo dieta","Control anual"],correct:1},
+{q:"Paciente PADDS requiere egreso cuando:",a:["Dependencia severa persiste","Recupera funcionalidad","Cuidador activo","Seguimiento activo"],correct:1},
+{q:"Paciente PADDS requiere derivación secundaria cuando:",a:["Control estable","Supera resolutividad APS","Seguimiento activo","Plan vigente"],correct:1},
+{q:"Objetivo central PADDS APS es:",a:["Hospitalizar","Mantener funcionalidad domiciliaria","Eliminar controles","Suspender visitas"],correct:1}],
+extremo:[{q:"Paciente Barthel 40 + dependencia parcial AVD básicas conducta PADDS:",a:["Ingreso inmediato PADDS","Seguimiento cardiovascular","Evaluación integral previa ingreso","Alta programa"],correct:2},
+{q:"Paciente PADDS con cuidador único hospitalizado conducta:",a:["Alta inmediata","Evaluar red apoyo alternativa urgente","Mantener seguimiento habitual","Suspender controles"],correct:1},
+{q:"Paciente PADDS SatO2 85% persistente domiciliaria prioridad:",a:["Control semanal","Evaluación urgente derivación","Educación domiciliaria","Alta programa"],correct:1},
+{q:"Error crítico VDI inicial PADDS:",a:["Evaluar Barthel","Evaluar cuidador","No evaluar seguridad domicilio","Evaluar red apoyo"],correct:2},
+{q:"Paciente con UPP estadio 3 domiciliaria conducta APS:",a:["Alta programa","Derivación evaluación avanzada","Solo curación simple","Solo educación"],correct:1},
+{q:"Paciente PADDS con gastrostomía desplazada conducta:",a:["Reinstalar en domicilio","Evaluación urgente derivación","Alta programa","Solo educación"],correct:1},
+{q:"Paciente PADDS con fiebre + compromiso conciencia conducta:",a:["Control semanal","Derivación urgente hospital","Educación domiciliaria","Alta programa"],correct:1},
+{q:"Paciente PADDS con polifarmacia + somnolencia conducta:",a:["Alta programa","Revisión farmacológica urgente","Solo educación","Control anual"],correct:1},
+{q:"Error crítico seguridad farmacológica domiciliaria:",a:["Evaluar adherencia","Evaluar duplicidad terapéutica","No revisar interacciones","Evaluar horarios"],correct:2},
+{q:"Paciente PADDS con disfagia progresiva prioridad:",a:["Alta programa","Evaluación riesgo aspiración inmediata","Solo dieta","Control anual"],correct:1},
+{q:"Paciente PADDS con aspiración repetida conducta:",a:["Alta programa","Derivación evaluación especializada","Solo educación","Control anual"],correct:1},
+{q:"Paciente PADDS con cuidador sobrecargado severo conducta:",a:["Alta programa","Intervención psicosocial prioritaria","Solo educación","Control anual"],correct:1},
+{q:"Paciente PADDS con deterioro cognitivo + deambulación errática riesgo:",a:["Hipertensión","Caídas","Diabetes","Anemia"],correct:1},
+{q:"Paciente PADDS con riesgo caídas alto intervención prioritaria:",a:["Alta programa","Evaluación barreras domiciliarias","Solo dieta","Control anual"],correct:1},
+{q:"Error crítico prevención caídas domiciliarias:",a:["Evaluar iluminación","Evaluar alfombras","No evaluar barandas","Evaluar pasillos"],correct:2},
+{q:"Paciente PADDS con lesión pie diabético profunda conducta:",a:["Alta programa","Derivación evaluación especializada","Solo glicemia","Solo educación"],correct:1},
+{q:"Paciente PADDS con glicemia 45 mg/dl compromiso leve conciencia conducta:",a:["Insulina","Glucosa oral inmediata","Ayuno","Alta programa"],correct:1},
+{q:"Paciente PADDS con glicemia 400 mg/dl + poliuria conducta:",a:["Alta programa","Evaluación médica urgente","Solo educación","Control anual"],correct:1},
+{q:"Paciente PADDS con anemia sintomática sospecha conducta:",a:["Alta programa","Confirmación laboratorio APS prioritaria","Solo dieta","Control anual"],correct:1},
+{q:"Paciente PADDS con depresión cuidador + abandono cuidados riesgo:",a:["Alta programa","Descompensación paciente","Alta funcionalidad","Menor dependencia"],correct:1},
+{q:"Error crítico continuidad PADDS:",a:["Registrar ficha","Coordinar red asistencial","No contrarreferenciar","Evaluar Barthel"],correct:2},
+{q:"Paciente PADDS con inmovilidad prolongada + dolor pantorrilla sospecha:",a:["Hipertensión","TVP","Diabetes","Anemia"],correct:1},
+{q:"Paciente PADDS con TVP sospechada conducta:",a:["Alta programa","Derivación urgente","Solo educación","Control anual"],correct:1},
+{q:"Paciente PADDS con SNG desplazada conducta:",a:["Reinstalar domicilio","Derivación urgente","Alta programa","Solo educación"],correct:1},
+{q:"Error crítico manejo SNG domiciliaria:",a:["Verificar fijación","Verificar permeabilidad","No verificar posición","Educar cuidador"],correct:2},
+{q:"Paciente PADDS con deterioro funcional rápido conducta:",a:["Alta programa","Reevaluación integral inmediata","Solo dieta","Control anual"],correct:1},
+{q:"Paciente PADDS con sospecha sepsis domiciliaria conducta:",a:["Alta programa","Derivación urgente hospital","Solo educación","Control anual"],correct:1},
+{q:"Paciente PADDS con cuidador ausente reiteradamente conducta:",a:["Alta programa","Evaluación red apoyo alternativa","Solo educación","Control anual"],correct:1},
+{q:"Paciente PADDS con escara mal olor + secreción conducta:",a:["Alta programa","Derivación evaluación avanzada","Solo curación simple","Solo educación"],correct:1},
+{q:"Paciente PADDS con SatO2 88% sin O2 domiciliario conducta:",a:["Alta programa","Evaluación indicación oxigenoterapia","Solo educación","Control anual"],correct:1},
+{q:"Error crítico oxigenoterapia domiciliaria:",a:["Control saturación","Educar uso","No evaluar indicación clínica","Seguimiento"],correct:2},
+{q:"Paciente PADDS con disfagia + pérdida peso conducta:",a:["Alta programa","Evaluación nutricional prioritaria","Solo educación","Control anual"],correct:1},
+{q:"Paciente PADDS con dependencia total + abandono familiar riesgo:",a:["Alta funcionalidad","Institucionalización","Alta programa","Menor dependencia"],correct:1},
+{q:"Paciente PADDS con dolor EVA 8 persistente conducta:",a:["Alta programa","Optimización analgesia inmediata","Solo educación","Control anual"],correct:1},
+{q:"Error crítico manejo dolor domiciliario:",a:["Aplicar EVA","Registrar EVA","No tratar dolor severo","Evaluar respuesta"],correct:2},
+{q:"Paciente PADDS con fiebre sin foco aparente conducta:",a:["Alta programa","Evaluación clínica prioritaria","Solo educación","Control anual"],correct:1},
+{q:"Paciente PADDS con deterioro cognitivo + agresividad conducta:",a:["Alta programa","Evaluación salud mental APS","Solo educación","Control anual"],correct:1},
+{q:"Paciente PADDS con hiporexia persistente conducta:",a:["Alta programa","Evaluación nutricional","Solo educación","Control anual"],correct:1},
+{q:"Error crítico evaluación nutricional domiciliaria:",a:["Evaluar ingesta","Evaluar peso","No evaluar IMC","Evaluar disfagia"],correct:2},
+{q:"Paciente PADDS con sospecha aspiración repetida conducta:",a:["Alta programa","Derivación evaluación especializada","Solo dieta","Control anual"],correct:1},
+{q:"Paciente PADDS con cuidador adulto mayor frágil riesgo:",a:["Alta programa","Sobrecarga cuidado","Alta funcionalidad","Menor dependencia"],correct:1},
+{q:"Paciente PADDS con deterioro respiratorio progresivo conducta:",a:["Alta programa","Evaluación urgente","Solo educación","Control anual"],correct:1},
+{q:"Paciente PADDS con lesión piel humedad prolongada riesgo:",a:["UPP","HTA","DM2","Anemia"],correct:0},
+{q:"Error crítico prevención UPP avanzada:",a:["Cambios posición","Superficie apoyo","No controlar humedad","Educación cuidador"],correct:2},
+{q:"Paciente PADDS con infección urinaria recurrente sondaje conducta:",a:["Alta programa","Evaluación técnica manejo sonda","Solo educación","Control anual"],correct:1},
+{q:"Paciente PADDS con abandono farmacológico conducta:",a:["Alta programa","Intervención adherencia activa","Solo educación","Control anual"],correct:1},
+{q:"Paciente PADDS con deterioro funcional + riesgo institucionalización conducta:",a:["Alta programa","Plan cuidados intensivo domiciliario","Solo educación","Control anual"],correct:1},
+{q:"Paciente PADDS con sospecha delirium domiciliario conducta:",a:["Alta programa","Evaluación clínica urgente","Solo educación","Control anual"],correct:1},
+{q:"Paciente PADDS requiere egreso cuando:",a:["Persistencia dependencia severa","Recuperación funcional significativa","Seguimiento activo","Cuidador presente"],correct:1},
+{q:"Objetivo central PADDS APS avanzado:",a:["Hospitalizar paciente","Mantener cuidado seguro domiciliario","Eliminar controles","Suspender visitas"],correct:1}],
+},
+
+vac:{
+facil:[{q:"¿Qué vacuna se administra al recién nacido para prevenir tuberculosis grave?",a:["SRP","BCG","Hepatitis A","dTpa"],correct:1,exp:"BCG protege contra TB grave"},
+{q:"¿Qué vacuna también se administra al nacer?",a:["Influenza","Hepatitis B","Neumococo","VPH"],correct:1,exp:"Previene transmisión vertical"},
+{q:"¿A qué edad inicia la vacuna hexavalente?",a:["RN","2 meses","6 meses","1 año"],correct:1,exp:"Inicio esquema"},
+{q:"¿Vía de administración de la BCG?",a:["IM","SC","ID","Oral"],correct:2,exp:"Intradérmica"},
+{q:"Temperatura correcta de cadena de frío?",a:["0-2","2-8","8-12","-2-2"],correct:1,exp:"Rango seguro"},
+{q:"¿Vacuna que protege contra sarampión?",a:["dTpa","SRP","Hep B","Neumococo"],correct:1,exp:"Triple viral"},
+{q:"Edad primera SRP?",a:["6 meses","12 meses","18 meses","4 años"],correct:1,exp:"Al año"},
+{q:"¿ESAVI grave?",a:["Dolor","Fiebre","Anafilaxia","Eritema"],correct:2,exp:"Emergencia"},
+{q:"Vacuna en embarazadas?",a:["BCG","SRP","dTpa","Varicela"],correct:2,exp:"Protege RN"},
+{q:"Vacuna anual?",a:["SRP","Influenza","Hep A","BCG"],correct:1,exp:"Campaña anual"},
+{q:"Sitio IM en lactantes?",a:["Deltoides","Glúteo","Muslo","Abdomen"],correct:2,exp:"Muslo"},
+{q:"¿Qué deja la BCG?",a:["Nada","Cicatriz","Ampolla permanente","Absceso"],correct:1,exp:"Cicatriz típica"},
+{q:"¿Se puede vacunar con resfrío leve?",a:["No","Sí","Solo antibióticos","Solo fiebre"],correct:1,exp:"No contraindica"},
+{q:"¿Qué hacer ante fiebre post vacuna?",a:["Antibiótico","Paracetamol","Nada","Hospitalizar"],correct:1,exp:"Manejo sintomático"},
+{q:"Vacunas PNI son?",a:["Pagadas","Opcionales","Gratuitas","Privadas"],correct:2,exp:"Gratuitas"},
+{q:"Sistema de registro?",a:["RCE","RNI","SIGGES","SAPU"],correct:1,exp:"Registro oficial"},
+{q:"¿Dónde se vacuna?",a:["Solo hospital","APS y privados","Solo clínicas","Farmacias"],correct:1,exp:"Red de salud"},
+{q:"¿Qué es inmunización activa?",a:["Anticuerpos","Respuesta propia","Suero","Plasma"],correct:1,exp:"Genera memoria"},
+{q:"Vacuna viva ejemplo?",a:["dTpa","SRP","Hep B","Influenza"],correct:1,exp:"SRP"},
+{q:"Observación post vacuna?",a:["5 min","10 min","30 min","1 hora"],correct:2,exp:"Seguridad"},
+
+// CASOS CLÍNICOS
+
+{q:"RN sano en puerperio inmediato ¿qué vacunar?",a:["SRP","BCG + Hep B","Hexavalente","Neumococo"],correct:1,exp:"Esquema RN"},
+{q:"Lactante 2 meses ¿qué corresponde?",a:["SRP","Hexavalente","VPH","dTpa"],correct:1,exp:"Inicio esquema"},
+{q:"Niño 12 meses ¿vacuna?",a:["SRP","BCG","Hep B","Influenza"],correct:0,exp:"Primera SRP"},
+{q:"Paciente con anafilaxia post vacuna ¿manejo?",a:["Paracetamol","Adrenalina","Alta","Observación"],correct:1,exp:"Emergencia"},
+{q:"Fiebre leve post vacuna ¿conducta?",a:["Antibiótico","Paracetamol","Hospitalizar","Suspender"],correct:1,exp:"Normal"},
+
+// MÁS PREGUNTAS
+
+{q:"¿Vacuna neumococo protege contra?",a:["Virus","Bacteria","Hongo","Parásito"],correct:1,exp:"Streptococcus"},
+{q:"¿Vacuna meningococo protege contra?",a:["Virus","Bacteria","Hongo","Parásito"],correct:1,exp:"Neisseria"},
+{q:"¿Se pueden administrar varias vacunas juntas?",a:["No","Sí","Solo 2","Solo vivas"],correct:1,exp:"Sí"},
+{q:"¿Qué hacer si se retrasa una vacuna?",a:["Reiniciar","Continuar","Suspender","Duplicar"],correct:1,exp:"Continuar"},
+{q:"¿Contraindicación absoluta?",a:["Resfrío","Fiebre leve","Anafilaxia","Antibióticos"],correct:2,exp:"Principal"},
+{q:"¿Vacuna SRP es?",a:["Viva","Inactivada","ARN","Bacteria"],correct:0,exp:"Viva"},
+{q:"¿Vacuna hexavalente es?",a:["Única","Combinada","Oral","Viva"],correct:1,exp:"Contiene varias"},
+{q:"¿Sitio IM adulto?",a:["Muslo","Glúteo","Deltoides","Abdomen"],correct:2,exp:"Preferido"},
+{q:"¿Se puede vacunar con antibióticos?",a:["No","Sí","Solo si fiebre","Depende"],correct:1,exp:"Sí"},
+{q:"¿Influenza protege contra?",a:["Bacteria","Virus","Hongo","Parásito"],correct:1,exp:"Virus"},
+
+// MÁS CASOS
+
+{q:"Niño con resfrío leve acude a vacuna ¿conducta?",a:["No vacunar","Vacunar","Hospitalizar","Derivar"],correct:1,exp:"Sí se vacuna"},
+{q:"Niño con esquema atrasado ¿qué hacer?",a:["Reiniciar","Continuar","Suspender","Esperar"],correct:1,exp:"Continuar"},
+{q:"Madre consulta por dolor local post vacuna ¿respuesta?",a:["Grave","Normal","Error","Suspender"],correct:1,exp:"Esperable"},
+{q:"Niño recibe dos vacunas mismo día ¿correcto?",a:["No","Sí","Error","Depende"],correct:1,exp:"Correcto"},
+{q:"Paciente consulta por vacuna anual ¿cuál?",a:["SRP","Influenza","Hep B","BCG"],correct:1,exp:"Influenza"},
+
+// FINAL
+
+{q:"¿Vacuna Hepatitis B protege contra?",a:["Virus","Bacteria","Hongo","Parásito"],correct:0,exp:"Virus"},
+{q:"¿BCG protege contra?",a:["Neumonía","TB grave","Influenza","COVID"],correct:1,exp:"TB"},
+{q:"¿Vacuna VPH protege contra?",a:["Virus respiratorio","Cáncer","Bacteria","Parásito"],correct:1,exp:"Cáncer cervicouterino"},
+{q:"¿Vacunas vivas están contraindicadas en?",a:["Niños","Adultos","Embarazadas","Escolares"],correct:2,exp:"Embarazo"},
+{q:"¿Tiempo mínimo de observación?",a:["10 min","20 min","30 min","60 min"],correct:2,exp:"30 min"}],
+medio:[{q:"¿Qué contiene la vacuna hexavalente?",a:["DTPa+IPV+Hib+HepB","SRP","Neumococo","Hepatitis A"],correct:0,exp:"Vacuna combinada"},
+{q:"¿Qué hacer si un niño pierde una dosis del esquema?",a:["Reiniciar esquema","Continuar esquema","Suspender vacunas","Duplicar dosis"],correct:1,exp:"Nunca se reinicia"},
+{q:"¿Cuál es contraindicación absoluta de vacunación?",a:["Fiebre leve","Resfrío","Anafilaxia previa","Uso de antibióticos"],correct:2,exp:"Principal contraindicación"},
+{q:"¿Se pueden administrar varias vacunas el mismo día?",a:["No","Sí","Solo 2","Solo si son vivas"],correct:1,exp:"Sí, es seguro"},
+{q:"Intervalo mínimo entre dosis de una misma vacuna?",a:["1 semana","2 semanas","4 semanas","8 semanas"],correct:2,exp:"Regla general"},
+{q:"¿Qué vacuna protege contra Neisseria meningitidis?",a:["Neumococo","Meningococo","SRP","Hepatitis B"],correct:1,exp:"Meningococo"},
+{q:"¿Qué vacuna protege contra Streptococcus pneumoniae?",a:["Influenza","Neumococo","SRP","Varicela"],correct:1,exp:"Neumococo"},
+{q:"¿Qué hacer si se administra una vacuna antes del tiempo mínimo?",a:["Es válida","Debe repetirse","Se ignora","Se suspende"],correct:1,exp:"Dosis inválida"},
+{q:"¿Las vacunas vivas se pueden administrar juntas?",a:["No","Sí","Solo en adultos","Solo en niños"],correct:1,exp:"Sí o separadas por 4 semanas"},
+{q:"¿Si no se administran vacunas vivas el mismo día?",a:["Separar 1 semana","Separar 2 semanas","Separar 4 semanas","No importa"],correct:2,exp:"Intervalo mínimo"},
+{q:"¿Qué hacer si niño tiene esquema atrasado?",a:["Reiniciar","Continuar","Suspender","Esperar"],correct:1,exp:"Continuar esquema"},
+{q:"¿Vacuna SRP es de tipo?",a:["Inactivada","Viva","ARN","Bacteriana"],correct:1,exp:"Viva atenuada"},
+{q:"¿Vacuna varicela es?",a:["Inactivada","Viva","Toxoide","ARN"],correct:1,exp:"Viva"},
+{q:"¿Vacunas vivas están contraindicadas en?",a:["Adultos","Niños","Embarazadas","Escolares"],correct:2,exp:"Contraindicación"},
+{q:"¿Qué hacer si paciente presenta fiebre >38,5°C al momento de vacunar?",a:["Vacunar igual","Diferir","Duplicar dosis","Suspender esquema"],correct:1,exp:"Precaución"},
+{q:"¿Qué vacuna se administra a los 12 meses?",a:["BCG","SRP","dTpa","VPH"],correct:1,exp:"Primera dosis"},
+{q:"¿Qué vacuna se administra a los 18 meses?",a:["SRP","Hexavalente refuerzo","BCG","Influenza"],correct:1,exp:"Refuerzo"},
+{q:"¿Qué vacuna se administra en 1° básico?",a:["SRP","dTpa","VPH","BCG"],correct:1,exp:"Refuerzo escolar"},
+{q:"¿Vacuna VPH actual en Chile?",a:["3 dosis","2 dosis","1 dosis","Anual"],correct:2,exp:"Esquema actualizado"},
+{q:"¿Qué vacuna se administra a adultos mayores?",a:["SRP","Neumococo 23","BCG","Hexavalente"],correct:1,exp:"Protección neumonía"},
+{q:"Niño de 6 meses sin vacunas previas ¿qué hacer?",a:["No vacunar","Iniciar esquema","Esperar","Derivar"],correct:1,exp:"Iniciar esquema atrasado"},
+{q:"Niño con antibióticos en curso ¿vacunar?",a:["No","Sí","Solo si termina","Depende"],correct:1,exp:"No contraindica"},
+{q:"Paciente con reacción local leve post vacuna ¿conducta?",a:["Suspender esquema","Continuar esquema","Hospitalizar","Derivar"],correct:1,exp:"Normal"},
+{q:"Paciente con fiebre leve y congestión nasal ¿vacunar?",a:["No","Sí","Solo hospital","Esperar"],correct:1,exp:"No contraindica"},
+{q:"Niño recibe vacuna y vomita inmediatamente ¿conducta?",a:["Repetir","No repetir","Suspender","Derivar"],correct:1,exp:"No afecta IM"},
+{q:"¿Qué hacer ante cadena de frío alterada?",a:["Usar igual","Desechar","Congelar","Diluir"],correct:1,exp:"Pierde eficacia"},
+{q:"¿Temperatura cadena de frío?",a:["0-2","2-8","8-12","-2-2"],correct:1,exp:"Rango correcto"},
+{q:"¿Dónde se registra vacunación?",a:["SAPU","RNI","SIGGES","RCE"],correct:1,exp:"Sistema nacional"},
+{q:"¿Qué hacer ante ESAVI grave?",a:["Ignorar","Notificar","Solo tratar","Suspender registro"],correct:1,exp:"Obligatorio"},
+{q:"¿Tiempo observación post vacuna?",a:["10 min","20 min","30 min","60 min"],correct:2,exp:"30 min"},
+{q:"¿Vacuna influenza protege contra?",a:["Bacteria","Virus","Hongo","Parásito"],correct:1,exp:"Virus"},
+{q:"¿Vacuna hepatitis B protege contra?",a:["Virus","Bacteria","Hongo","Parásito"],correct:0,exp:"Virus"},
+{q:"¿Sitio IM en adultos?",a:["Muslo","Glúteo","Deltoides","Abdomen"],correct:2,exp:"Deltoides"},
+{q:"¿Sitio IM en lactantes?",a:["Deltoides","Glúteo","Muslo","Abdomen"],correct:2,exp:"Muslo"},
+{q:"¿Qué hacer si paciente no recuerda vacunas?",a:["No vacunar","Reiniciar","Evaluar y vacunar","Suspender"],correct:2,exp:"Esquema rescate"},
+{q:"Niño llega un mes atrasado a vacuna ¿conducta?",a:["Reiniciar","Continuar","Suspender","Esperar"],correct:1,exp:"Continuar"},
+{q:"Paciente embarazada consulta por SRP ¿conducta?",a:["Administrar","Contraindicar","Reducir dosis","Postergar 1 día"],correct:1,exp:"Vacuna viva"},
+{q:"Paciente adulto mayor consulta por vacuna ¿cuál corresponde?",a:["BCG","Neumococo","SRP","VPH"],correct:1,exp:"Grupo riesgo"},
+{q:"Niño con reacción anafiláctica previa a vacuna ¿conducta?",a:["Vacunar","No vacunar","Reducir dosis","Hospitalizar siempre"],correct:1,exp:"Contraindicación"},
+{q:"Paciente consulta por vacuna anual ¿cuál?",a:["SRP","Influenza","Hep B","BCG"],correct:1,exp:"Campaña anual"},
+{q:"¿Qué tipo de vacuna es dTpa?",a:["Viva","Inactivada","ARN","Bacteriana"],correct:1,exp:"Toxoide"},
+{q:"¿Qué protege dTpa?",a:["Virus","Bacterias","Hongos","Parásitos"],correct:1,exp:"Difteria, tétanos, coqueluche"},
+{q:"¿Vacuna varicela protege contra?",a:["Virus","Bacteria","Hongo","Parásito"],correct:0,exp:"Virus"},
+{q:"¿Qué hacer si vacuna está vencida?",a:["Usar","Desechar","Congelar","Diluir"],correct:1,exp:"No válida"},
+{q:"¿Vacunas del PNI son?",a:["Pagadas","Gratuitas","Opcionales","Privadas"],correct:1,exp:"Acceso universal"}],
+dificil:[{q:"Si no se administran vacunas vivas el mismo día, ¿intervalo mínimo?",a:["1 semana","2 semanas","4 semanas","6 semanas"],correct:2,exp:"Regla clave vacunas vivas"},
+{q:"¿Qué vacuna está contraindicada en embarazo?",a:["Influenza","dTpa","SRP","COVID"],correct:2,exp:"Vacuna viva"},
+{q:"¿Qué hacer si cadena de frío se rompe sin certeza?",a:["Usar","Desechar","Congelar","Aplicar igual"],correct:1,exp:"Se pierde eficacia"},
+{q:"Paciente inmunosuprimido ¿qué vacunas evitar?",a:["Inactivadas","Vivas","Todas","Ninguna"],correct:1,exp:"Vacunas vivas contraindicadas"},
+{q:"Si una dosis se administra antes del intervalo mínimo?",a:["Es válida","Debe repetirse","Se omite","Se refuerza"],correct:1,exp:"Dosis inválida"},
+{q:"¿Qué hacer si se administra vacuna vencida?",a:["Válida","Repetir","Observar","Ignorar"],correct:1,exp:"No válida"},
+{q:"¿Qué hacer ante ESAVI grave?",a:["Ignorar","Notificar","Solo tratar","Registrar después"],correct:1,exp:"Obligatorio"},
+{q:"Vacuna VPH en Chile actualmente?",a:["3 dosis","2 dosis","1 dosis","Refuerzo anual"],correct:2,exp:"Esquema actualizado"},
+{q:"Vacuna neumococo 23 es de tipo?",a:["Viva","Conjugada","Polisacárida","ARN"],correct:2,exp:"Adultos mayores"},
+{q:"Vacuna VRS corresponde a?",a:["Virus vivo","Anticuerpo monoclonal","Toxoide","ARN"],correct:1,exp:"Inmunización pasiva"},
+
+{q:"¿Qué hacer si se administra dosis con intervalo menor al recomendado?",a:["Válida","Repetir","Observar","Suspender esquema"],correct:1,exp:"Debe repetirse"},
+{q:"¿Qué hacer si vacuna se congela accidentalmente?",a:["Usar","Desechar","Descongelar","Aplicar doble dosis"],correct:1,exp:"Se inactiva"},
+{q:"¿Qué hacer si no hay registro de cadena de frío?",a:["Usar","Desechar","Evaluar","Aplicar igual"],correct:1,exp:"Seguridad"},
+{q:"¿Vacuna SRP en inmunosuprimidos?",a:["Indicada","Contraindicada","Reducir dosis","Postergar 1 día"],correct:1,exp:"Vacuna viva"},
+{q:"¿Qué hacer si paciente recibió doble dosis accidental?",a:["Nada","Observar","Suspender esquema","Hospitalizar"],correct:1,exp:"Generalmente observar"},
+{q:"¿Qué hacer si se administra vacuna en sitio incorrecto?",a:["Nada","Repetir","Observar","Suspender"],correct:1,exp:"Puede invalidar"},
+{q:"¿Vacunas vivas simultáneas?",a:["Contraindicadas","Permitidas","Solo adultos","Solo niños"],correct:1,exp:"Mismo día permitido"},
+{q:"¿Intervalo mínimo entre vacuna viva e inactivada?",a:["No importa","1 semana","2 semanas","4 semanas"],correct:0,exp:"Sin restricción"},
+{q:"¿Qué hacer si paciente no tiene carnet de vacunas?",a:["No vacunar","Reiniciar","Evaluar y vacunar","Suspender"],correct:2,exp:"Esquema rescate"},
+{q:"¿Qué hacer ante reacción anafiláctica previa a vacuna?",a:["Vacunar","No vacunar","Reducir dosis","Hospitalizar"],correct:1,exp:"Contraindicación"},
+
+// CASOS CLÍNICOS
+
+{q:"Embarazada de 10 semanas consulta por SRP ¿conducta?",a:["Administrar","Contraindicar","Reducir dosis","Aplicar en hospital"],correct:1,exp:"Vacuna viva contraindicada"},
+{q:"Paciente inmunosuprimido consulta por varicela ¿conducta?",a:["Administrar","Contraindicar","Reducir dosis","Aplicar doble dosis"],correct:1,exp:"Vacuna viva"},
+{q:"Niño recibe vacuna adelantada 1 semana ¿conducta?",a:["Válida","Repetir","Suspender","Ignorar"],correct:1,exp:"Intervalo inválido"},
+{q:"Cadena de frío alterada sin registro ¿qué hacer?",a:["Usar","Desechar","Evaluar","Aplicar igual"],correct:1,exp:"Seguridad"},
+{q:"Paciente presenta anafilaxia previa ¿vacunar?",a:["Sí","No","Reducir dosis","Solo hospital"],correct:1,exp:"Contraindicación"},
+
+// MÁS
+
+{q:"¿Qué hacer si vacuna queda a >8°C por varias horas?",a:["Usar","Desechar","Congelar","Aplicar igual"],correct:1,exp:"Pierde potencia"},
+{q:"¿Vacuna influenza es de tipo?",a:["Viva","Inactivada","ARN","Toxoide"],correct:1,exp:"Inactivada"},
+{q:"¿Vacuna hepatitis B tipo?",a:["Viva","Inactivada","ARN","Toxoide"],correct:1,exp:"Recombinante"},
+{q:"¿Vacuna BCG tipo?",a:["Viva","Inactivada","ARN","Bacteriana muerta"],correct:0,exp:"Viva atenuada"},
+{q:"¿Qué hacer si paciente presenta fiebre alta post vacuna?",a:["Nada","Evaluar","Repetir dosis","Suspender esquema"],correct:1,exp:"Evaluar gravedad"},
+{q:"¿Qué hacer si paciente rechaza vacuna?",a:["Obligar","Registrar rechazo","Suspender atención","Denunciar"],correct:1,exp:"Registro obligatorio"},
+{q:"¿Qué hacer si vacuna se administra subcutánea en vez de IM?",a:["Nada","Repetir","Observar","Suspender"],correct:1,exp:"Puede invalidar"},
+{q:"¿Qué hacer si se rompe ampolla antes de uso?",a:["Usar","Desechar","Refrigerar","Diluir"],correct:1,exp:"Contaminación"},
+{q:"¿Qué hacer si hay duda de técnica de administración?",a:["Usar","Repetir","Ignorar","Suspender esquema"],correct:1,exp:"Seguridad"},
+{q:"¿Qué hacer si paciente recibe vacuna equivocada?",a:["Nada","Evaluar y corregir","Suspender esquema","Ignorar"],correct:1,exp:"Error programático"},
+
+// MÁS CASOS
+
+{q:"Niño inmunosuprimido recibe SRP por error ¿riesgo?",a:["Ninguno","Alto","Moderado","Bajo"],correct:1,exp:"Riesgo infección"},
+{q:"Vacuna congelada administrada ¿conducta?",a:["Válida","Repetir","Observar","Nada"],correct:1,exp:"Inactivada"},
+{q:"Paciente recibe vacuna vencida ¿conducta?",a:["Válida","Repetir","Observar","Nada"],correct:1,exp:"No válida"},
+{q:"Error en sitio de aplicación ¿conducta?",a:["Nada","Repetir","Observar","Registrar"],correct:1,exp:"Puede invalidar"},
+{q:"Paciente con shock post vacuna ¿manejo?",a:["Alta","Adrenalina","Paracetamol","Nada"],correct:1,exp:"Emergencia"},
+
+// FINAL
+
+{q:"¿Qué hacer ante pérdida de cadena de frío total?",a:["Usar","Desechar","Evaluar","Aplicar igual"],correct:1,exp:"Seguridad"},
+{q:"¿Vacunas vivas requieren qué en inmunosuprimidos?",a:["Administrar","Evitar","Reducir dosis","Duplicar"],correct:1,exp:"Contraindicadas"},
+{q:"¿Qué hacer si intervalo entre dosis es mayor al recomendado?",a:["Reiniciar","Continuar","Suspender","Duplicar"],correct:1,exp:"Nunca reiniciar"},
+{q:"¿Qué hacer si paciente llega muy atrasado al esquema?",a:["Reiniciar","Continuar","Suspender","Esperar"],correct:1,exp:"Continuar"},
+{q:"¿Qué hacer ante error programático?",a:["Ignorar","Registrar y corregir","Suspender esquema","Repetir todo"],correct:1,exp:"Norma técnica"}],
+
+extremo:[{q:"Paciente recibe vacuna viva y luego otra viva a los 10 días ¿conducta?",a:["Válido","Repetir segunda dosis","Repetir primera","Suspender esquema"],correct:1,exp:"Intervalo mínimo 4 semanas"},
+{q:"Vacuna mantenida a 10°C por 6 horas ¿conducta?",a:["Usar","Desechar","Refrigerar","Aplicar igual"],correct:1,exp:"Pérdida de potencia"},
+{q:"Paciente inmunosuprimido recibe vacuna viva por error ¿acción?",a:["Nada","Vigilar estrechamente","Repetir dosis","Suspender esquema"],correct:1,exp:"Riesgo infección"},
+{q:"Se administra vacuna por vía incorrecta ¿conducta?",a:["Válida","Repetir dosis","Observar","Suspender esquema"],correct:1,exp:"Puede invalidarse"},
+{q:"Vacuna sin trazabilidad de lote ¿conducta?",a:["Usar","Desechar","Registrar igual","Aplicar"],correct:1,exp:"No segura"},
+
+{q:"Intervalo mayor al recomendado entre dosis ¿conducta?",a:["Reiniciar","Continuar","Suspender","Duplicar"],correct:1,exp:"Nunca reiniciar"},
+{q:"Paciente con reacción anafiláctica previa a componente vacunal ¿conducta?",a:["Vacunar","Contraindicar","Reducir dosis","Hospitalizar"],correct:1,exp:"Contraindicación absoluta"},
+{q:"Vacuna congelada accidentalmente ¿conducta?",a:["Usar","Desechar","Descongelar","Aplicar igual"],correct:1,exp:"Se inactiva"},
+{q:"Administración simultánea de múltiples vacunas IM ¿límite?",a:["1","2","3","Sin límite práctico"],correct:3,exp:"Distintos sitios"},
+{q:"Vacuna administrada en sitio glúteo en lactante ¿conducta?",a:["Válida","Repetir","Observar","Suspender"],correct:1,exp:"Mala absorción"},
+
+{q:"Vacuna aplicada fuera de cadena de frío sin registro ¿conducta?",a:["Usar","Desechar","Evaluar","Aplicar"],correct:1,exp:"Seguridad"},
+{q:"Error en dilución de vacuna liofilizada ¿conducta?",a:["Usar","Desechar","Corregir","Aplicar igual"],correct:1,exp:"Dosis inválida"},
+{q:"Paciente recibe vacuna incorrecta ¿conducta?",a:["Nada","Evaluar y corregir","Suspender esquema","Ignorar"],correct:1,exp:"Error programático"},
+{q:"Falla eléctrica prolongada en refrigerador ¿acción?",a:["Usar vacunas","Desechar","Evaluar cadena frío","Aplicar igual"],correct:2,exp:"Evaluación técnica"},
+{q:"Vacuna vencida administrada ¿conducta?",a:["Válida","Repetir dosis","Observar","Nada"],correct:1,exp:"No válida"},
+
+// CASOS CLÍNICOS
+
+{q:"Niño recibe SRP y a los 15 días varicela ¿conducta?",a:["Válido","Repetir varicela","Repetir SRP","Suspender"],correct:1,exp:"Intervalo insuficiente"},
+{q:"Paciente con VIH avanzado consulta por vacuna viva ¿conducta?",a:["Administrar","Contraindicar","Reducir dosis","Aplicar doble"],correct:1,exp:"Inmunosupresión"},
+{q:"Cadena de frío desconocida tras traslado ¿conducta?",a:["Usar","Desechar","Evaluar","Aplicar igual"],correct:1,exp:"Seguridad"},
+{q:"Vacuna IM administrada SC ¿conducta?",a:["Válida","Repetir","Observar","Suspender"],correct:1,exp:"Absorción alterada"},
+{q:"Paciente con shock post vacuna ¿manejo?",a:["Alta","Adrenalina","Paracetamol","Nada"],correct:1,exp:"Emergencia vital"},
+
+// MÁS
+
+{q:"¿Qué hacer si se administra dosis doble por error?",a:["Nada","Observar","Suspender esquema","Repetir esquema"],correct:1,exp:"Generalmente no grave"},
+{q:"¿Vacuna sin rotulación visible?",a:["Usar","Desechar","Registrar igual","Aplicar"],correct:1,exp:"No segura"},
+{q:"¿Qué hacer si hay duda en técnica de administración?",a:["Nada","Repetir","Ignorar","Suspender"],correct:1,exp:"Seguridad"},
+{q:"¿Paciente con fiebre alta post vacuna?",a:["Nada","Evaluar","Repetir dosis","Suspender esquema"],correct:1,exp:"Evaluar gravedad"},
+{q:"¿Vacuna administrada en intervalo menor por error programático?",a:["Válida","Repetir","Suspender","Ignorar"],correct:1,exp:"No válida"},
+
+{q:"¿Qué hacer ante error en registro RNI?",a:["Ignorar","Corregir","Eliminar registro","Repetir vacuna"],correct:1,exp:"Debe corregirse"},
+{q:"¿Vacuna almacenada en puerta del refrigerador?",a:["Correcto","Incorrecto","Depende","Solo algunas"],correct:1,exp:"Zona inestable"},
+{q:"¿Vacuna expuesta a luz solar directa?",a:["Válida","No válida","Depende","Refrigerar"],correct:1,exp:"Degradación"},
+{q:"¿Uso de termómetro sin calibración?",a:["Correcto","Incorrecto","Depende","Solo hospital"],correct:1,exp:"No confiable"},
+{q:"¿Vacuna reconstituida no usada en tiempo?",a:["Usar","Desechar","Refrigerar","Aplicar igual"],correct:1,exp:"Pierde estabilidad"},
+
+// MÁS CASOS
+
+{q:"Paciente recibe vacuna equivocada y correcta el mismo día ¿conducta?",a:["Nada","Evaluar esquema","Suspender","Repetir ambas"],correct:1,exp:"Corrección"},
+{q:"Niño recibe vacuna en intervalo menor por error ¿conducta?",a:["Válida","Repetir","Ignorar","Suspender"],correct:1,exp:"No válida"},
+{q:"Paciente con alergia severa consulta por vacuna ¿conducta?",a:["Vacunar","Evaluar","Contraindicar","Reducir dosis"],correct:1,exp:"Evaluación clínica"},
+{q:"Falla cadena frío parcial ¿conducta?",a:["Usar","Desechar","Evaluar estabilidad","Aplicar"],correct:2,exp:"Depende tiempo/temp"},
+{q:"Vacuna administrada sin consentimiento ¿acción?",a:["Nada","Registrar evento","Ignorar","Repetir dosis"],correct:1,exp:"Aspecto legal"},
+
+// FINAL
+
+{q:"¿Qué hacer ante error crítico en vacunatorio?",a:["Ignorar","Registrar y notificar","Suspender programa","Repetir todo"],correct:1,exp:"Norma técnica"},
+{q:"¿Vacuna con aspecto alterado?",a:["Usar","Desechar","Refrigerar","Aplicar igual"],correct:1,exp:"Posible contaminación"},
+{q:"¿Falla total cadena de frío?",a:["Usar","Desechar","Evaluar","Aplicar"],correct:1,exp:"Seguridad"},
+{q:"¿Intervalo mayor entre dosis?",a:["Reiniciar","Continuar","Suspender","Duplicar"],correct:1,exp:"Nunca reiniciar"},
+{q:"¿Error programático reiterado?",a:["Ignorar","Capacitar equipo","Suspender vacunas","Reducir dosis"],correct:1,exp:"Mejora continua"}]
+},
+
+far:{
+facil:[
+{q:"Fármaco de primera línea frecuente en HTA APS:",a:["Metformina","Losartán","Salbutamol","Omeprazol"],correct:1},
+{q:"Metformina se utiliza principalmente en:",a:["HTA","DM2","Asma","Depresión"],correct:1},
+{q:"GES incluye tratamiento garantizado para:",a:["DM2","Resfrío común","Dolor lumbar leve","Alergia estacional"],correct:0},
+{q:"Salbutamol inhalador se usa en:",a:["HTA","Broncoespasmo","DM2","Depresión"],correct:1},
+{q:"RAM frecuente salbutamol:",a:["Bradicardia","Temblor","Hipoglicemia","Somnolencia"],correct:1},
+{q:"Omeprazol pertenece a grupo:",a:["Antibiótico","IBP","Antihipertensivo","Antidepresivo"],correct:1},
+{q:"Paracetamol se utiliza para:",a:["Hipertensión","Dolor leve-moderado","Diabetes","Asma"],correct:1},
+{q:"RAM frecuente paracetamol sobredosis:",a:["Hepatotoxicidad","Hipotensión","Hipoglicemia","Broncoespasmo"],correct:0},
+{q:"Insulina se administra vía:",a:["Oral","Subcutánea","Intranasal","Tópica"],correct:1},
+{q:"GES DM2 incluye acceso a:",a:["Insulina","Solo dieta","Solo ejercicio","Solo controles"],correct:0},
+{q:"Ácido acetilsalicílico dosis baja se usa como:",a:["Antibiótico","Antiagregante","Broncodilatador","Antidepresivo"],correct:1},
+{q:"RAM frecuente AAS:",a:["Sangrado gástrico","Hiperglicemia","Bradicardia","Somnolencia"],correct:0},
+{q:"Atorvastatina reduce:",a:["Presión arterial","Colesterol LDL","Glicemia","Temperatura"],correct:1},
+{q:"RAM estatinas:",a:["Mialgia","Hipoglicemia","Hipotermia","Bradicardia"],correct:0},
+{q:"Enalapril pertenece a:",a:["ARA II","IECA","Betabloqueador","Diurético"],correct:1},
+{q:"RAM frecuente IECA:",a:["Tos seca","Hipoglicemia","Somnolencia","Diarrea"],correct:0},
+{q:"Hidroclorotiazida es:",a:["Diurético","Antibiótico","Broncodilatador","Antidepresivo"],correct:0},
+{q:"RAM hidroclorotiazida:",a:["Hipokalemia","Hiperglicemia","Hipotermia","Hipercalcemia"],correct:0},
+{q:"Amoxicilina pertenece a:",a:["Macrólidos","Penicilinas","Quinolonas","Aminoglucósidos"],correct:1},
+{q:"Error clínico frecuente antibióticos:",a:["Completar tratamiento","Suspender precozmente","Seguir indicación","Control médico"],correct:1},
+{q:"GES neumonía incluye:",a:["Acceso tratamiento antibiótico","Solo hospitalización","Solo radiografía","Solo laboratorio"],correct:0},
+{q:"Azitromicina pertenece a:",a:["Macrólidos","Penicilinas","Betabloqueadores","IECA"],correct:0},
+{q:"Prednisona es:",a:["Antibiótico","Corticoide","Antihipertensivo","Antidiabético"],correct:1},
+{q:"RAM corticoides prolongados:",a:["Hiperglicemia","Hipotensión","Hipokalemia","Hipotermia"],correct:0},
+{q:"Sertralina se usa en:",a:["Depresión","HTA","Asma","DM2"],correct:0},
+{q:"GES depresión incluye acceso a:",a:["ISRS","Solo psicoterapia privada","Solo hospitalización","Solo laboratorio"],correct:0},
+{q:"RAM sertralina:",a:["Náuseas","Hipoglicemia","Hipotermia","Bradicardia"],correct:0},
+{q:"Diazepam pertenece a:",a:["ISRS","Benzodiacepinas","Betabloqueadores","IECA"],correct:1},
+{q:"Cuidados enfermería benzodiacepinas:",a:["Evaluar sedación","Evaluar glicemia","Evaluar talla","Evaluar IMC"],correct:0},
+{q:"Metoclopramida se usa en:",a:["Náuseas","HTA","Depresión","Asma"],correct:0},
+{q:"RAM metoclopramida:",a:["Somnolencia","Hipoglicemia","Hipotermia","Bradicardia"],correct:0},
+{q:"Furosemida es:",a:["Diurético","Antibiótico","Broncodilatador","Antidepresivo"],correct:0},
+{q:"RAM furosemida:",a:["Hipokalemia","Hiperglicemia","Hipotermia","Hipercalcemia"],correct:0},
+{q:"GES insuficiencia cardíaca incluye:",a:["Diuréticos","Solo dieta","Solo ejercicio","Solo laboratorio"],correct:0},
+{q:"Salbutamol inhalador vía:",a:["Oral","Inhalatoria","Subcutánea","EV"],correct:1},
+{q:"Error clínico inhaladores:",a:["No educar técnica inhalatoria","Uso aerocámara","Control dosis","Seguimiento"],correct:0},
+{q:"Insulina rápida se usa para:",a:["Control basal","Corrección hiperglicemia","HTA","Asma"],correct:1},
+{q:"RAM insulina:",a:["Hipoglicemia","Hipertensión","Fiebre","Tos"],correct:0},
+{q:"GES HTA incluye:",a:["Tratamiento farmacológico","Solo dieta","Solo ejercicio","Solo controles"],correct:0},
+{q:"Ketorolaco pertenece a:",a:["AINE","IECA","ISRS","ARA II"],correct:0},
+{q:"RAM AINE:",a:["Dolor gástrico","Hipoglicemia","Hipotermia","Bradicardia"],correct:0},
+{q:"Omeprazol protege:",a:["Riñón","Estómago","Pulmón","Corazón"],correct:1},
+{q:"GES cáncer gástrico incluye:",a:["Diagnóstico y tratamiento","Solo dieta","Solo laboratorio","Solo control"],correct:0},
+{q:"Insulina NPH es:",a:["Acción rápida","Acción intermedia","Acción ultrarrápida","Acción tópica"],correct:1},
+{q:"Cuidados enfermería insulina:",a:["Rotar sitios punción","Aplicar siempre mismo sitio","Aplicar IM","Aplicar EV"],correct:0},
+{q:"Salbutamol exceso produce:",a:["Taquicardia","Hipotermia","Bradicardia","Hipoglicemia"],correct:0},
+{q:"Losartán pertenece a:",a:["ARA II","IECA","Betabloqueador","Diurético"],correct:0},
+{q:"GES EPOC incluye:",a:["Broncodilatadores","Solo dieta","Solo laboratorio","Solo ejercicio"],correct:0},
+{q:"Cefalexina pertenece a:",a:["Cefalosporinas","Macrólidos","IECA","ISRS"],correct:0},
+{q:"Error clínico antibióticos frecuente:",a:["Automedicación","Seguir indicación","Completar tratamiento","Control médico"],correct:0},
+{q:"Insulina debe almacenarse:",a:["Refrigeración","Congelación","Temperatura 40°C","Luz directa"],correct:0}],
+medio:[{q:"Paciente con IECA presenta tos persistente conducta:",a:["Suspender y derivar evaluación médica","Mantener tratamiento","Duplicar dosis","Agregar AINE"],correct:0},
+{q:"Error clínico frecuente con insulina NPH:",a:["Rotar sitios punción","Aplicar antes de dormir sin control glicemia","Refrigerar correctamente","Control glicémico"],correct:1},
+{q:"Paciente DM2 con metformina debe suspender temporalmente ante:",a:["Ejercicio","Uso contraste yodado","Hipertensión","Resfrío"],correct:1},
+{q:"RAM grave estatinas que requiere evaluación:",a:["Mialgia intensa","Somnolencia leve","Cefalea leve","Náuseas leves"],correct:0},
+{q:"Losartán está indicado principalmente en:",a:["HTA","Hipoglicemia","Asma","Depresión"],correct:0},
+{q:"GES HTA garantiza:",a:["Acceso diagnóstico y tratamiento","Solo control anual","Solo hospitalización","Solo laboratorio"],correct:0},
+{q:"Paciente con furosemida requiere control de:",a:["Potasio","Hemoglobina","Plaquetas","TSH"],correct:0},
+{q:"Error clínico frecuente con furosemida:",a:["No controlar electrolitos","Administrar VO","Registrar diuresis","Control PA"],correct:0},
+{q:"Insulina rápida se administra habitualmente:",a:["Antes comidas","Antes dormir exclusivamente","Una vez semanal","Solo hospitalizados"],correct:0},
+{q:"Hipoglicemia por insulina se trata inicialmente con:",a:["Glucosa oral si consciente","Insulina rápida","Ayuno","Metformina"],correct:0},
+{q:"GES DM2 incluye seguimiento con:",a:["Equipo multidisciplinario","Solo médico","Solo nutricionista","Solo enfermería"],correct:0},
+{q:"Paciente con AINE crónico requiere vigilancia de:",a:["Función renal","Visión","Audición","TSH"],correct:0},
+{q:"Ketorolaco prolongado aumenta riesgo:",a:["Daño renal","Hipoglicemia","Hipotermia","Hipercalcemia"],correct:0},
+{q:"Omeprazol uso prolongado puede producir:",a:["Déficit vitamina B12","Hipertensión","Hiperglicemia","Hipokalemia"],correct:0},
+{q:"Error frecuente con IBP:",a:["Uso sin indicación prolongado","Administración VO","Registro ficha","Seguimiento"],correct:0},
+{q:"Salbutamol exceso provoca:",a:["Taquicardia","Hipotermia","Hipoglicemia","Bradicardia"],correct:0},
+{q:"Cuidados enfermería inhaloterapia:",a:["Educar técnica inhalatoria","Administrar IM","Diluir EV","Ayuno previo"],correct:0},
+{q:"GES EPOC incluye:",a:["Broncodilatadores inhalados","Solo laboratorio","Solo radiografía","Solo hospitalización"],correct:0},
+{q:"Prednisona prolongada puede causar:",a:["Hiperglicemia","Hipoglicemia","Hipotermia","Bradicardia"],correct:0},
+{q:"Paciente corticoides crónicos requiere vigilancia:",a:["Glicemia","Audición","Visión nocturna","Hemoglobina fetal"],correct:0},
+{q:"RAM benzodiacepinas adultos mayores:",a:["Caídas","Hiperglicemia","Hipotermia","Hipercalcemia"],correct:0},
+{q:"Error frecuente benzodiacepinas:",a:["Uso prolongado sin control","Control clínico","Registro ficha","Evaluación sueño"],correct:0},
+{q:"Sertralina pertenece a:",a:["ISRS","IECA","ARA II","AINE"],correct:0},
+{q:"Inicio ISRS puede provocar:",a:["Ansiedad inicial leve","Hipoglicemia","Hipotermia","Hipercalcemia"],correct:0},
+{q:"GES depresión incluye tratamiento con:",a:["ISRS","Solo psicoterapia privada","Solo hospitalización","Solo laboratorio"],correct:0},
+{q:"Amoxicilina pertenece a:",a:["Penicilinas","Macrólidos","Quinolonas","Cefalosporinas"],correct:0},
+{q:"Error clínico antibióticos frecuente:",a:["Suspender precozmente","Completar tratamiento","Registrar RAM","Educar paciente"],correct:0},
+{q:"Ceftriaxona vía habitual hospitalaria:",a:["Endovenosa","Oral","Subcutánea","Inhalatoria"],correct:0},
+{q:"RAM ceftriaxona frecuente:",a:["Diarrea","Hipoglicemia","Hipotermia","Bradicardia"],correct:0},
+{q:"GES neumonía incluye:",a:["Tratamiento antibiótico oportuno","Solo radiografía","Solo laboratorio","Solo control"],correct:0},
+{q:"Metoclopramida RAM frecuente:",a:["Somnolencia","Hipoglicemia","Hipotermia","Hipercalcemia"],correct:0},
+{q:"Error metoclopramida frecuente:",a:["Uso prolongado innecesario","Uso corto plazo","Registro ficha","Educación paciente"],correct:0},
+{q:"Enalapril requiere vigilancia de:",a:["Presión arterial","Temperatura","Audición","Visión"],correct:0},
+{q:"IECA contraindicación relativa:",a:["Embarazo","HTA","DM2","Dislipidemia"],correct:0},
+{q:"Losartán alternativa cuando:",a:["Tos por IECA","Hipoglicemia","Asma","Depresión"],correct:0},
+{q:"Atorvastatina controla:",a:["LDL","TSH","Hemoglobina","Glicemia exclusivamente"],correct:0},
+{q:"Error estatinas frecuente:",a:["No controlar enzimas hepáticas","Administrar VO","Registrar ficha","Seguimiento"],correct:0},
+{q:"Furosemida efecto esperado:",a:["Aumento diuresis","Hipoglicemia","Hipotermia","Sedación"],correct:0},
+{q:"GES insuficiencia cardíaca incluye:",a:["Diuréticos","Solo dieta","Solo laboratorio","Solo ejercicio"],correct:0},
+{q:"Insulina NPH inicio acción aproximado:",a:["1-2 horas","30 segundos","10 minutos","24 horas"],correct:0},
+{q:"Error insulina frecuente:",a:["No rotar sitios","Registrar glicemia","Educar paciente","Control seguimiento"],correct:0},
+{q:"Paracetamol sobredosis afecta principalmente:",a:["Hígado","Riñón","Pulmón","Corazón"],correct:0},
+{q:"Ketorolaco contraindicado en:",a:["Insuficiencia renal","HTA controlada","DM2","Dislipidemia"],correct:0},
+{q:"Salbutamol vía preferente crisis:",a:["Inhalatoria","EV","SC","VO"],correct:0},
+{q:"GES asma incluye:",a:["Broncodilatadores inhalados","Solo laboratorio","Solo hospitalización","Solo radiografía"],correct:0},
+{q:"Prednisona efecto inmunológico:",a:["Inmunosupresión","Inmunoestimulación","Antibacteriano","Antiviral directo"],correct:0},
+{q:"Error corticoides frecuente:",a:["Suspensión brusca prolongados","Uso indicado corto","Registro ficha","Educación paciente"],correct:0},
+{q:"Diazepam RAM frecuente:",a:["Somnolencia","Hipoglicemia","Hipotermia","Hipercalcemia"],correct:0},
+{q:"GES epilepsia incluye:",a:["Acceso anticonvulsivantes","Solo laboratorio","Solo hospitalización","Solo radiografía"],correct:0},
+{q:"Insulina almacenamiento correcto:",a:["Refrigeración 2-8°C","Congelación","40°C","Sol directo"],correct:0}],
+dificil:[{q:"Paciente con metformina programado a TAC con contraste conducta:",a:["Suspender metformina temporalmente","Duplicar dosis","Administrar junto contraste","Mantener sin cambios"],correct:0},
+{q:"RAM estatinas que obliga suspender:",a:["CPK elevada + mialgia intensa","Cefalea leve","Náuseas leves","Somnolencia"],correct:0},
+{q:"Error crítico administración insulina rápida:",a:["Administrar sin control glicemia previo","Rotar sitios","Registrar dosis","Educar paciente"],correct:0},
+{q:"Insulina NPH peak aproximado:",a:["4-12 horas","30 minutos","24 horas","48 horas"],correct:0},
+{q:"Hipoglicemia paciente inconsciente tratamiento inicial:",a:["Glucosa EV","Glucosa oral","Insulina rápida","Metformina"],correct:0},
+{q:"Furosemida EV rápida puede provocar:",a:["Ototoxicidad","Hiperglicemia","Hipotermia","Hipercalcemia"],correct:0},
+{q:"Error crítico furosemida EV:",a:["Administración rápida en bolo","Control diuresis","Control PA","Registro ficha"],correct:0},
+{q:"Ceftriaxona incompatibilidad clásica:",a:["Soluciones con calcio en RN","Suero fisiológico","Agua bidestilada","Glucosa 5% adultos"],correct:0},
+{q:"Paciente enalapril presenta hipotensión sintomática conducta:",a:["Suspender y evaluar","Duplicar dosis","Administrar AINE","Mantener igual"],correct:0},
+{q:"IECA contraindicación absoluta:",a:["Embarazo","HTA","Dislipidemia","DM2"],correct:0},
+{q:"ARA II alternativa principal cuando:",a:["Tos por IECA","Hipoglicemia","Cefalea","Asma"],correct:0},
+{q:"Salbutamol exceso produce:",a:["Taquicardia","Bradicardia","Hipotermia","Hipoglicemia"],correct:0},
+{q:"Error crítico inhaloterapia hospitalaria:",a:["No evaluar técnica inhalatoria","Uso aerocámara","Registro ficha","Seguimiento"],correct:0},
+{q:"Prednisona suspensión brusca prolongada produce riesgo:",a:["Insuficiencia suprarrenal","Hipoglicemia","Hipotermia","Bradicardia"],correct:0},
+{q:"Paciente corticoides prolongados requiere control:",a:["Glicemia","TSH","Audición","Visión nocturna"],correct:0},
+{q:"Omeprazol prolongado aumenta riesgo:",a:["Déficit B12","Hipotermia","Hipercalcemia","Hipoglicemia"],correct:0},
+{q:"Error frecuente IBP hospitalario:",a:["Uso sin indicación prolongado","Administrar VO","Registro ficha","Seguimiento"],correct:0},
+{q:"Ketorolaco contraindicado en:",a:["Insuficiencia renal","HTA leve","DM2","Dislipidemia"],correct:0},
+{q:"AINE prolongado aumenta riesgo:",a:["Daño renal","Hipotermia","Hipoglicemia","Bradicardia"],correct:0},
+{q:"Paciente anticoagulado AAS + warfarina riesgo:",a:["Hemorragia","Hipoglicemia","Hipotermia","Bradicardia"],correct:0},
+{q:"Heparina control laboratorio:",a:["TTPK","TSH","PCR","Creatinina exclusivamente"],correct:0},
+{q:"Error crítico heparina:",a:["No verificar sangrado activo","Registrar dosis","Control TTPK","Seguimiento"],correct:0},
+{q:"Paciente con benzodiacepinas adulto mayor riesgo:",a:["Caídas","Hiperglicemia","Hipotermia","Hipercalcemia"],correct:0},
+{q:"Diazepam EV administración rápida produce:",a:["Depresión respiratoria","Hiperglicemia","Hipotermia","Hipercalcemia"],correct:0},
+{q:"Metoclopramida prolongada riesgo:",a:["Síntomas extrapiramidales","Hipoglicemia","Hipotermia","Bradicardia"],correct:0},
+{q:"Error frecuente metoclopramida:",a:["Uso prolongado innecesario","Uso corto plazo","Registro ficha","Educación paciente"],correct:0},
+{q:"Insulina rápida peak aproximado:",a:["1-3 horas","10 horas","24 horas","48 horas"],correct:0},
+{q:"Paciente glicemia 45 mg/dl consciente tratamiento:",a:["Glucosa oral","Insulina rápida","Ayuno","Metformina"],correct:0},
+{q:"Paracetamol dosis alta riesgo:",a:["Hepatotoxicidad","Hipotermia","Hipoglicemia","Bradicardia"],correct:0},
+{q:"Error crítico paracetamol hospital:",a:["Duplicidad terapéutica inadvertida","Administrar VO","Registrar dosis","Control dolor"],correct:0},
+{q:"Atorvastatina control requerido:",a:["Perfil hepático","TSH","PCR","Hemoglobina"],correct:0},
+{q:"Suspensión estatina obligatoria:",a:["Rabdomiolisis sospecha","Cefalea leve","Náuseas leves","Somnolencia"],correct:0},
+{q:"Ceftriaxona RAM frecuente:",a:["Diarrea","Hipotermia","Hipoglicemia","Bradicardia"],correct:0},
+{q:"Error antibióticos hospitalarios:",a:["Suspensión precoz","Registro ficha","Control signos vitales","Seguimiento"],correct:0},
+{q:"Paciente alergia penicilina conducta:",a:["Evitar betalactámicos relacionados","Administrar amoxicilina","Duplicar dosis","Suspender seguimiento"],correct:0},
+{q:"Insulina almacenamiento incorrecto:",a:["Congelación","Refrigeración","Uso protegido luz","Control fecha apertura"],correct:0},
+{q:"Furosemida efecto esperado:",a:["Diuresis aumentada","Hipoglicemia","Hipotermia","Sedación"],correct:0},
+{q:"Error diuréticos frecuente:",a:["No controlar electrolitos","Registrar diuresis","Control PA","Seguimiento"],correct:0},
+{q:"Salbutamol crisis asmática vía:",a:["Inhalatoria","VO","SC","IM"],correct:0},
+{q:"Prednisona efecto metabólico:",a:["Hiperglicemia","Hipoglicemia","Hipotermia","Hipercalcemia"],correct:0},
+{q:"Paciente IECA + espironolactona riesgo:",a:["Hiperkalemia","Hipoglicemia","Hipotermia","Hipercalcemia"],correct:0},
+{q:"Control laboratorio espironolactona:",a:["Potasio","TSH","PCR","Hemoglobina"],correct:0},
+{q:"Error espironolactona:",a:["No controlar potasio","Registro ficha","Seguimiento","Control PA"],correct:0},
+{q:"Heparina bajo peso molecular control principal:",a:["Signos sangrado","TSH","PCR","Hemoglobina exclusivamente"],correct:0},
+{q:"Insulina rápida administración ideal:",a:["Previo comidas","Antes dormir exclusivamente","Semanal","Mensual"],correct:0},
+{q:"GES DM2 incluye acceso:",a:["Insulina","Solo dieta","Solo laboratorio","Solo hospitalización"],correct:0},
+{q:"GES HTA incluye acceso:",a:["Tratamiento farmacológico","Solo dieta","Solo ejercicio","Solo laboratorio"],correct:0},
+{q:"GES EPOC incluye acceso:",a:["Broncodilatadores","Solo radiografía","Solo laboratorio","Solo hospitalización"],correct:0},
+{q:"GES depresión incluye:",a:["ISRS","Solo hospitalización","Solo laboratorio","Solo radiografía"],correct:0},
+{q:"Evento adverso grave farmacológico requiere:",a:["Notificación farmacovigilancia","Registro simple","Suspensión seguimiento","Alta paciente"],correct:0}],
+extremo:[{q:"Administración EV rápida de KCl puede provocar:",a:["Arritmia fatal","Hipoglicemia","Hipotermia","Hipercalcemia"],correct:0},
+{q:"Error crítico KCl EV:",a:["Administrar en bolo directo","Diluir correctamente","Monitorizar ECG","Control potasio"],correct:0},
+{q:"Velocidad máxima habitual segura furosemida EV:",a:["Lenta para evitar ototoxicidad","Bolo rápido siempre","Solo IM","Solo VO"],correct:0},
+{q:"Paciente insulina rápida sin ingesta posterior riesgo:",a:["Hipoglicemia severa","Hipertensión","Hipercalcemia","Hipotermia"],correct:0},
+{q:"Hipoglicemia severa inconsciente manejo inicial:",a:["Glucosa EV inmediata","Glucosa oral","Insulina rápida","Metformina"],correct:0},
+{q:"Paciente metformina + insuficiencia renal riesgo:",a:["Acidosis láctica","Hipotermia","Hipercalcemia","Bradicardia"],correct:0},
+{q:"Suspender metformina previo contraste yodado por riesgo:",a:["Acidosis láctica","Hipoglicemia","Hipercalcemia","Hipotermia"],correct:0},
+{q:"Ceftriaxona incompatible en RN con:",a:["Calcio EV","Suero fisiológico","Agua bidestilada","Glucosa 5%"],correct:0},
+{q:"Administración rápida diazepam EV produce:",a:["Depresión respiratoria","Hiperglicemia","Hipotermia","Hipercalcemia"],correct:0},
+{q:"Heparina EV requiere monitorización:",a:["TTPK","TSH","PCR","Perfil hepático"],correct:0},
+{q:"Paciente heparina con hematuria conducta:",a:["Suspender y evaluar sangrado","Duplicar dosis","Mantener igual","Agregar AINE"],correct:0},
+{q:"Warfarina control laboratorio principal:",a:["INR","TTPK","TSH","PCR"],correct:0},
+{q:"INR elevado + sangrado activo conducta:",a:["Suspender anticoagulante y derivar urgente","Duplicar dosis","Mantener igual","Administrar AINE"],correct:0},
+{q:"Error crítico anticoagulación hospitalaria:",a:["No verificar INR previo","Registrar dosis","Evaluar sangrado","Seguimiento"],correct:0},
+{q:"Administración rápida vancomicina produce:",a:["Síndrome hombre rojo","Hipoglicemia","Hipotermia","Hipercalcemia"],correct:0},
+{q:"Prevención síndrome hombre rojo:",a:["Infusión lenta","Bolo rápido","IM","SC"],correct:0},
+{q:"Paciente IECA + espironolactona riesgo:",a:["Hiperkalemia","Hipoglicemia","Hipotermia","Hipercalcemia"],correct:0},
+{q:"Control obligatorio espironolactona:",a:["Potasio sérico","TSH","PCR","Hemoglobina"],correct:0},
+{q:"Administración rápida morfina EV riesgo:",a:["Depresión respiratoria","Hiperglicemia","Hipotermia","Hipercalcemia"],correct:0},
+{q:"Antídoto intoxicación opioides:",a:["Naloxona","Flumazenil","Vitamina K","Atropina"],correct:0},
+{q:"Benzodiacepinas antídoto:",a:["Flumazenil","Naloxona","Vitamina K","Atropina"],correct:0},
+{q:"Error crítico benzodiacepinas adulto mayor:",a:["Uso prolongado sin control","Registro ficha","Seguimiento","Evaluación sueño"],correct:0},
+{q:"Insulina basal-bolo incluye:",a:["Insulina basal + rápida comidas","Solo NPH","Solo rápida","Solo metformina"],correct:0},
+{q:"Administrar insulina rápida sin glicemia previa es:",a:["Error crítico","Conducta habitual","Recomendado","Indiferente"],correct:0},
+{q:"Paciente glicemia 400 mg/dl + cetonas conducta:",a:["Evaluación urgente cetoacidosis","Alta domicilio","Solo control","Solo dieta"],correct:0},
+{q:"Suspensión brusca corticoides prolongados produce:",a:["Insuficiencia suprarrenal","Hipoglicemia","Hipotermia","Hipercalcemia"],correct:0},
+{q:"Corticoides prolongados control obligatorio:",a:["Glicemia","TSH","PCR","Hemoglobina fetal"],correct:0},
+{q:"AINE + IECA + diurético riesgo:",a:["Falla renal aguda","Hipotermia","Hipoglicemia","Hipercalcemia"],correct:0},
+{q:"Triple terapia riesgo conocida como:",a:["Triple whammy renal","Síndrome rojo","Shock séptico","Evento centinela"],correct:0},
+{q:"Paracetamol sobredosis tratamiento inicial:",a:["N-acetilcisteína","Naloxona","Flumazenil","Vitamina K"],correct:0},
+{q:"Duplicidad terapéutica paracetamol produce:",a:["Hepatotoxicidad","Hipoglicemia","Hipotermia","Hipercalcemia"],correct:0},
+{q:"Administración KCl requiere:",a:["Dilución previa obligatoria","Bolo directo","IM","SC"],correct:0},
+{q:"Insulina almacenamiento incorrecto:",a:["Congelación","Refrigeración","Protección luz","Control fecha apertura"],correct:0},
+{q:"Evento adverso grave farmacológico requiere:",a:["Notificación farmacovigilancia ISP","Registro simple","Alta paciente","Suspender seguimiento"],correct:0},
+{q:"Paciente alergia penicilina + amoxicilina administrada es:",a:["Error medicación","Conducta correcta","Indiferente","Tratamiento estándar"],correct:0},
+{q:"Administración rápida furosemida EV riesgo:",a:["Ototoxicidad","Hipoglicemia","Hipotermia","Hipercalcemia"],correct:0},
+{q:"Insulina NPH peak aproximado:",a:["4-12 horas","30 minutos","24 horas","48 horas"],correct:0},
+{q:"Administrar insulina en mismo sitio repetido produce:",a:["Lipodistrofia","Hipotermia","Hipoglicemia","Hipercalcemia"],correct:0},
+{q:"Rotación sitios insulina previene:",a:["Lipodistrofia","Hipotermia","Hipercalcemia","Hipoglicemia"],correct:0},
+{q:"Paciente warfarina + AINE riesgo:",a:["Hemorragia","Hipotermia","Hipoglicemia","Hipercalcemia"],correct:0},
+{q:"Heparina HBPM control principal:",a:["Signos sangrado","TSH","PCR","Perfil hepático"],correct:0},
+{q:"Ceftriaxona IM requiere:",a:["Dilución adecuada lidocaína según protocolo","Administración directa","SC","VO"],correct:0},
+{q:"Administración lidocaína alergia previa riesgo:",a:["Anafilaxia","Hipotermia","Hipoglicemia","Hipercalcemia"],correct:0},
+{q:"Salbutamol dosis repetidas excesivas producen:",a:["Taquicardia","Hipotermia","Hipoglicemia","Bradicardia"],correct:0},
+{q:"Paciente depresión respiratoria opioides conducta:",a:["Naloxona inmediata","Flumazenil","Vitamina K","Atropina"],correct:0},
+{q:"Evento centinela farmacológico ejemplo:",a:["Administración KCl en bolo","Registro ficha incompleto","Retraso control","Educación insuficiente"],correct:0},
+{q:"Administración medicamento sin verificar identidad paciente es:",a:["Error crítico seguridad","Conducta correcta","Indiferente","Procedimiento estándar"],correct:0},
+{q:"Regla seguridad administración medicamentos:",a:["5 correctos","2 correctos","10 correctos opcional","Solo dosis correcta"],correct:0},
+{q:"GES DM2 incluye acceso a:",a:["Insulina","Solo dieta","Solo laboratorio","Solo hospitalización"],correct:0},
+{q:"GES HTA incluye acceso a:",a:["Tratamiento farmacológico","Solo dieta","Solo ejercicio","Solo laboratorio"],correct:0}],
+}
+};
+
+
+/* FUNCIONES */
+
+function startQuiz(){
+
+const area=document.getElementById("area").value;
+const nivel=document.getElementById("nivel").value;
+
+quizData=[...banco[area][nivel]];
+shuffleArray(quizData);
+
+current=0;
+errors=0;
+
+document.getElementById("portada").style.display="none";
+document.getElementById("quiz").style.display="block";
+
+document.getElementById("restartBtn").style.display="none";
+document.getElementById("nextBtn").style.display="inline-block";
+
+loadQuestion();
+updateErrors();
+}
+
+function loadQuestion(){
+
+clearInterval(timer);
+timeLeft=20;
+startTimer();
+
+document.getElementById("feedback").innerText="";
+
+const q=quizData[current];
+document.getElementById("question").innerText=q.q;
+
+const answersDiv=document.getElementById("answers");
+answersDiv.innerHTML="";
+
+let opciones=q.a.map((t,i)=>({texto:t,correcto:i===q.correct}));
+shuffleArray(opciones);
+
+opciones.forEach(op=>{
+const btn=document.createElement("div");
+btn.className="answer";
+btn.innerText=op.texto;
+btn.onclick=()=>checkAnswer(op.correcto);
+answersDiv.appendChild(btn);
+});
+}
+
+function startTimer(){
+timer=setInterval(()=>{
+timeLeft--;
+document.getElementById("timer").innerText="Tiempo: "+timeLeft;
+
+if(timeLeft<=0){
+clearInterval(timer);
+document.getElementById("feedback").innerText="⏳ ¡SE ACABÓ EL TIEMPO!";
+document.getElementById("nextBtn").style.display="none";
+document.getElementById("restartBtn").style.display="inline-block";
+}
+},1000);
+}
+
+function checkAnswer(correcto){
+
+clearInterval(timer);
+
+if(!correcto){
+errors++;
+document.getElementById("feedback").innerText="❌ Incorrecto";
+updateErrors();
+
+if(errors>=3){
+document.getElementById("feedback").innerText="💀 3 errores. Reinicia.";
+document.getElementById("nextBtn").style.display="none";
+document.getElementById("restartBtn").style.display="inline-block";
+}
+}else{
+document.getElementById("feedback").innerText="✅ Correcto";
+}
+}
+
+function nextQuestion(){
+current++;
+
+if(current>=quizData.length){
+document.getElementById("feedback").innerText="🎉 Terminaste";
+document.getElementById("nextBtn").style.display="none";
+document.getElementById("restartBtn").style.display="inline-block";
+return;
+}
+
+loadQuestion();
+}
+
+function updateErrors(){
+document.getElementById("errors").innerText="Errores: "+errors+"/3";
+}
+
+function restartQuiz(){
+current=0;
+errors=0;
+shuffleArray(quizData);
+
+document.getElementById("restartBtn").style.display="none";
+document.getElementById("nextBtn").style.display="inline-block";
+
+loadQuestion();
+updateErrors();
+}
+
+function goHome(){
+clearInterval(timer);
+
+document.getElementById("quiz").style.display="none";
+document.getElementById("portada").style.display="block";
+
+current=0;
+errors=0;
+
+document.getElementById("feedback").innerText="";
+}
+
+</script>
+
+</body>
+</html>
